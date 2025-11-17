@@ -1,50 +1,124 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 function IconCrown() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M3 8l4 3 5-7 5 7 4-3v9H3V8z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M3 8l4 3 5-7 5 7 4-3v9H3V8z" fill="currentColor"/></svg>
   );
 }
 
 function IconShield() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M12 2l8 4v6c0 5-3.5 9.2-8 10-4.5-.8-8-5-8-10V6l8-4z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M12 2l8 4v6c0 5-3.5 9.2-8 10-4.5-.8-8-5-8-10V6l8-4z" fill="currentColor"/></svg>
   );
 }
 
 function IconWallet() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M3 7a3 3 0 013-3h12a2 2 0 012 2v2h-5a3 3 0 000 6h5v3a2 2 0 01-2 2H6a3 3 0 01-3-3V7z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M3 7a3 3 0 013-3h12a2 2 0 012 2v2h-5a3 3 0 000 6h5v3a2 2 0 01-2 2H6a3 3 0 01-3-3V7z" fill="currentColor"/></svg>
   );
 }
 
 function IconOffice() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M4 3h10v6h6v12H4V3zm2 2v14h12V11h-6V5H6z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M4 3h10v6h6v12H4V3zm2 2v14h12V11h-6V5H6z" fill="currentColor"/></svg>
   );
 }
 
 function IconBook() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M6 4h9a3 3 0 013 3v13H9a3 3 0 00-3-3H3V7a3 3 0 013-3zm0 12a1 1 0 011 1h9V7a1 1 0 00-1-1H6a1 1 0 00-1 1v9h1z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M6 4h9a3 3 0 013 3v13H9a3 3 0 00-3-3H3V7a3 3 0 013-3zm0 12a1 1 0 011 1h9V7a1 1 0 00-1-1H6a1 1 0 00-1 1v9h1z" fill="currentColor"/></svg>
   );
 }
 
 function IconUser() {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm-9 9a9 9 0 0118 0H3z" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm-9 9a9 9 0 0118 0H3z" fill="currentColor"/></svg>
   );
 }
 
 export default function HierarchyDashboard() {
-  const adminQ = useQuery({ queryKey: ["overview"], queryFn: async ({ signal }) => { const r = await fetch("/api/statistics/overview", { signal }); return r.json(); } });
-  const treasuryQ = useQuery({ queryKey: ["treasury","overview"], queryFn: async ({ signal }) => { const r = await fetch("/api/treasury/overview", { signal }); return r.json(); } });
-  const secStudentsQ = useQuery({ queryKey: ["sec","students"], queryFn: async ({ signal }) => { const r = await fetch("/api/secretary/students", { signal }); return r.json(); } });
-  const eduQ = useQuery({ queryKey: ["education","dashboard"], queryFn: async ({ signal }) => { const r = await fetch("/api/education-secretary/dashboard", { signal }); return r.json(); } });
-  const studentMeQ = useQuery({ queryKey: ["student","me"], queryFn: async ({ signal }) => { const r = await fetch("/api/student/me", { signal }); return r.json(); } });
-  const studentReportQ = useQuery({ queryKey: ["student","report", studentMeQ.data?.classId, studentMeQ.data?.id], enabled: !!studentMeQ.data?.classId && !!studentMeQ.data?.id, queryFn: async ({ signal }) => { const r = await fetch(`/api/student/report-card?classId=${studentMeQ.data!.classId}&studentId=${studentMeQ.data!.id}`, { signal }); return r.json(); } });
-  const teacherTermsQ = useQuery({ queryKey: ["teacher","terms"], queryFn: async ({ signal }) => { const r = await fetch("/api/teacher/terms", { signal }); return r.json(); } });
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+  
+  const adminQ = useQuery({ 
+    queryKey: ["overview"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/statistics/overview", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar estatísticas");
+      return r.json(); 
+    },
+    retry: 2,
+    staleTime: 30000
+  });
+  const treasuryQ = useQuery({ 
+    queryKey: ["treasury","overview"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/treasury/overview", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar tesouraria");
+      return r.json(); 
+    },
+    retry: 2
+  });
+  const secStudentsQ = useQuery({ 
+    queryKey: ["sec","students"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/secretary/students", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar alunos");
+      return r.json(); 
+    },
+    retry: 2
+  });
+  const eduQ = useQuery({ 
+    queryKey: ["education","dashboard"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/education-secretary/dashboard", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar educação");
+      return r.json(); 
+    },
+    retry: 2
+  });
+  const studentMeQ = useQuery({ 
+    queryKey: ["student","me"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/student/me", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar dados do aluno");
+      return r.json(); 
+    },
+    retry: 2
+  });
+  const studentReportQ = useQuery({ 
+    queryKey: ["student","report", studentMeQ.data?.classId, studentMeQ.data?.id], 
+    enabled: !!studentMeQ.data?.classId && !!studentMeQ.data?.id, 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch(`/api/student/report-card?classId=${studentMeQ.data!.classId}&studentId=${studentMeQ.data!.id}`, { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar boletim");
+      return r.json(); 
+    },
+    retry: 2
+  });
+  const teacherTermsQ = useQuery({ 
+    queryKey: ["teacher","terms"], 
+    queryFn: async ({ signal }) => { 
+      try {
+        const r = await fetch("/api/teacher/terms", { signal }); 
+        if (!r.ok) {
+          console.error("❌ Erro ao buscar bimestres no dashboard:", r.status, r.statusText);
+          throw new Error(`Erro ${r.status}: ${r.statusText}`);
+        }
+        const json = await r.json();
+        console.log("✅ Bimestres carregados no dashboard:", json);
+        return json;
+      } catch (err) {
+        console.error("❌ Erro na query de bimestres no dashboard:", err);
+        throw err;
+      }
+    },
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 30000
+  });
+  
   const avg = (studentReportQ.data||[]).length ? Number(((studentReportQ.data||[]).reduce((s:any,r:any) => s + r.average, 0) / (studentReportQ.data||[]).length).toFixed(2)) : 0;
   const studentStatus = avg>=7?"Aprovado":avg>=5?"Recuperação":"Em risco";
   const studentStatusClass = avg>=7?"bg-emerald-600 text-white":avg>=5?"bg-amber-500 text-white":"bg-rose-600 text-white";
@@ -55,6 +129,7 @@ export default function HierarchyDashboard() {
   const eduStatus = (eduQ.data?.taxaAprovacao||0)>=0.8&& (eduQ.data?.indiceFrequencia||0)>=0.9?"Estável":"Atenção";
   const eduStatusClass = eduStatus==="Estável"?"bg-emerald-600 text-white":"bg-amber-500 text-white";
   const teacherActive = (teacherTermsQ.data||[]).find((t:any)=>t.status==="active");
+  
   const panels = [
     { href: "/education-secretary", title: "Sec. de Educação", subtitle: "Gestão municipal da rede", accent: "from-violet-600 to-indigo-600", icon: IconCrown, tag: "PRINCIPAL", indicator: `${eduQ.data?.totalEscolas ?? 0} escolas`, statusText: eduStatus, statusClass: eduStatusClass },
     { href: "/admin", title: "Administrador", subtitle: "Configurações e usuários", accent: "from-slate-600 to-violet-600", icon: IconShield, indicator: `Saúde ${(adminQ.data?.systemHealth ?? 0)}%`, statusText: adminStatus, statusClass: adminStatusClass },
@@ -63,101 +138,54 @@ export default function HierarchyDashboard() {
     { href: "/teacher", title: "Professor", subtitle: "Turmas, aulas e presença", accent: "from-teal-600 to-emerald-600", icon: IconBook, indicator: teacherActive?`Bimestre ${teacherActive.number} aberto`:"Sem bimestre", statusText: "Em curso", statusClass: "bg-teal-600 text-white" },
     { href: "/student", title: "Aluno", subtitle: "Boletim e frequência", accent: "from-indigo-600 to-violet-600", icon: IconUser, indicator: `Média ${avg}`, statusText: studentStatus, statusClass: studentStatusClass }
   ];
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 text-slate-900">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Header melhorado - Baseado nas imagens */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8 fade-in">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-aletheia-orange to-orange-600 grid place-items-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <img src="/aletheia-logo.svg" alt="Aletheia" className="w-7 h-7 sm:w-8 sm:h-8" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/20 flex">
+      {/* Sidebar - Estilo PEDAGOGOS */}
+      <div className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-lg">
+        {/* Header Sidebar */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+              <img src="/aletheia-logo.svg" alt="Aletheia" className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-serif font-extrabold">
+              <div className="text-lg font-serif font-extrabold">
                 <span className="text-aletheia-emerald">A</span>
                 <span className="text-aletheia-blue">letheia</span>
               </div>
-              <div className="text-slate-600 text-xs sm:text-sm font-medium">Gestão Educacional Integrada</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <input 
-              placeholder="Buscar..." 
-              className="input-modern flex-1 sm:w-48 sm:flex-none focus:w-56 transition-all" 
-            />
-            <Link href="/review">
-              <div className="px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs sm:text-sm font-semibold hover:from-indigo-700 hover:to-violet-700 transition-all shadow-sm cursor-pointer whitespace-nowrap">
-                🎨 Review
-              </div>
-            </Link>
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-slate-200 grid place-items-center cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
-              <span className="text-base sm:text-lg">🔔</span>
-            </div>
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-slate-200 grid place-items-center cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
-              <span className="text-base sm:text-lg">⚙️</span>
+              <div className="text-xs text-slate-600">Sistema de Gestão</div>
             </div>
           </div>
         </div>
 
-        {/* Painel principal - Redesenhado baseado nas imagens */}
-        <div className="card-gradient from-blue-600 via-indigo-600 to-purple-600 p-6 sm:p-8 lg:p-12 mb-6 sm:mb-8 fade-in gradient-animated shadow-2xl rounded-2xl sm:rounded-3xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-white/95 mb-6 sm:mb-8">
-            <div className="text-xs sm:text-sm font-semibold flex items-center gap-2 sm:gap-3 mb-3 sm:mb-0">
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 pulse-soft shadow-lg shadow-emerald-400/50"></span>
-              Sistema Aletheia em funcionamento
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/25 backdrop-blur-md text-xs sm:text-sm font-semibold shadow-lg border border-white/20">Online</span>
-              <Link href="/education-secretary">
-                <div className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/20 backdrop-blur-sm text-xs sm:text-sm cursor-pointer hover:bg-white/30 transition-all font-medium border border-white/10">Tutorial</div>
-              </Link>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div className="lg:col-span-2">
-              <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-2 sm:mb-3 drop-shadow-xl">Painel Aletheia</div>
-              <div className="text-white/90 text-base sm:text-lg font-medium">Acesso rápido aos módulos do sistema</div>
-            </div>
-            <div className="text-center lg:text-right lg:flex lg:flex-col lg:justify-end">
-              <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white drop-shadow-2xl mb-2 bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 inline-block">Online</div>
-              <div className="text-white/90 text-xs sm:text-sm font-semibold">Sistema operacional</div>
-            </div>
-          </div>
-          
-          {/* Lista de painéis - Redesenhada baseado nas imagens */}
-          <div className="space-y-3 sm:space-y-4 lg:space-y-5">
-            {panels.map((p, index) => {
+        {/* Painéis do Sistema */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-2">PAINÉIS DO SISTEMA</div>
+          <div className="space-y-1">
+            {panels.map((p) => {
               const Icon = p.icon as any;
+              const isActive = activePanel === p.href;
               return (
                 <Link key={p.href} href={p.href}>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-xl sm:rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 hover:bg-white/25 transition-all duration-300 cursor-pointer group hover:scale-[1.01] sm:hover:scale-[1.02] hover:shadow-2xl hover:border-white/30 fade-in overflow-hidden" style={{ animationDelay: `${index * 0.08}s` }}>
-                    <div className="flex items-center gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-5 lg:p-6 flex-1 w-full sm:w-auto">
-                      <div className={`w-14 h-14 sm:w-16 sm:h-16 lg:w-18 lg:h-18 rounded-xl sm:rounded-2xl grid place-items-center bg-gradient-to-br ${p.accent} shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 border-2 border-white/30 flex-shrink-0`}>
-                        <Icon />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4 mb-1.5 sm:mb-2">
-                          <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white drop-shadow-lg">{p.title}</div>
-                          {p.tag && (
-                            <span className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/25 backdrop-blur-sm text-xs font-bold shadow-md border border-white/20 whitespace-nowrap">
-                              {p.tag}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
-                          <div className="text-white/95 text-xs sm:text-sm lg:text-base font-medium">{p.subtitle}</div>
-                          <span className="text-white/90 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/15 backdrop-blur-sm font-semibold border border-white/10 whitespace-nowrap">
-                            {p.indicator}
-                          </span>
-                          <span className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full font-bold shadow-md ${p.statusClass} whitespace-nowrap`}>
-                            {p.statusText}
-                          </span>
-                        </div>
-                      </div>
+                  <div 
+                    onClick={() => setActivePanel(p.href)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer group ${
+                      isActive 
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md" 
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      isActive ? "bg-white/20" : "bg-slate-100 group-hover:bg-slate-200"
+                    }`}>
+                      <Icon />
                     </div>
-                    <div className="hidden sm:block px-6 lg:px-8 text-white/90 text-xl sm:text-2xl font-bold group-hover:text-white group-hover:translate-x-2 transition-all duration-300">
-                      →
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate">{p.title}</div>
+                      {p.tag && (
+                        <div className="text-xs opacity-75 mt-0.5">{p.tag}</div>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -166,68 +194,141 @@ export default function HierarchyDashboard() {
           </div>
         </div>
 
-        {/* Cards de estatísticas - Redesenhados baseado nas imagens */}
-        <div className="mt-8 sm:mt-10 lg:mt-12">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-6 sm:mb-8 flex items-center gap-2 sm:gap-3">
-            <span className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-blue-600 via-indigo-600 to-purple-600 rounded-full shadow-lg"></span>
-            Visão Geral do Sistema
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
-            <div className="card-modern p-5 sm:p-6 lg:p-7 fade-in group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-blue-50/50">
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl sm:text-2xl shadow-xl group-hover:scale-110 transition-transform">
-                  👥
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">Alunos</div>
-              </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-blue-600 mb-2 sm:mb-3 drop-shadow-sm">2</div>
-              <div className="text-slate-600 text-xs sm:text-sm font-medium mb-3 sm:mb-4">Matrículas ativas</div>
-              <div className="h-1.5 sm:h-2 bg-blue-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full w-3/4"></div>
-              </div>
+        {/* Footer Sidebar */}
+        <div className="p-4 border-t border-slate-200 space-y-2">
+          <div className="flex items-center gap-2 text-xs text-slate-600 px-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Sistema Seguro
+          </div>
+          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sair
+          </button>
+        </div>
+      </div>
+
+      {/* Conteúdo Principal */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 pulse-soft"></span>
+            <span className="text-sm font-semibold text-slate-700">Sistema Aletheia em funcionamento</span>
+            <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Online</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <input 
+              placeholder="Buscar..." 
+              className="px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm w-64" 
+            />
+            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-200 transition-colors relative">
+              <span className="text-lg">🔔</span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
             </div>
-            
-            <div className="card-modern p-5 sm:p-6 lg:p-7 fade-in group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50">
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white text-xl sm:text-2xl shadow-xl group-hover:scale-110 transition-transform">
-                  📄
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">Documentos</div>
-              </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-purple-600 mb-2 sm:mb-3 drop-shadow-sm">0</div>
-              <div className="text-slate-600 text-xs sm:text-sm font-medium mb-3 sm:mb-4">Pendências</div>
-              <div className="h-1.5 sm:h-2 bg-purple-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full w-1/2"></div>
-              </div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold cursor-pointer hover:shadow-lg transition-shadow">
+              JS
             </div>
-            
-            <div className="card-modern p-5 sm:p-6 lg:p-7 fade-in group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-amber-50/50">
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-xl sm:text-2xl shadow-xl group-hover:scale-110 transition-transform">
-                  📅
-                </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">Eventos</div>
-              </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-amber-600 mb-2 sm:mb-3 drop-shadow-sm">0</div>
-              <div className="text-slate-600 text-xs sm:text-sm font-medium mb-3 sm:mb-4">Mês corrente</div>
-              <div className="h-1.5 sm:h-2 bg-amber-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full w-2/3"></div>
-              </div>
+          </div>
+        </div>
+
+        {/* Conteúdo do Dashboard */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Banner Principal */}
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-8 mb-6 text-white shadow-xl">
+            <div className="mb-4">
+              <div className="text-4xl font-extrabold mb-2">Painel Aletheia</div>
+              <div className="text-blue-100 text-lg">Acesso rápido aos módulos do sistema</div>
             </div>
-            
-            <div className="card-modern p-5 sm:p-6 lg:p-7 fade-in group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-emerald-50/50">
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xl sm:text-2xl shadow-xl group-hover:scale-110 transition-transform">
-                  💳
+            <Link href="/education-secretary">
+              <button className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
+                </svg>
+                Tutorial
+              </button>
+            </Link>
+          </div>
+
+          {/* Cards de Estatísticas Rápidas */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <span className="text-2xl">👥</span>
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">Mensalidades</div>
+                <div className="text-xs font-semibold text-slate-600">Alunos</div>
               </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-emerald-600 mb-2 sm:mb-3 drop-shadow-sm">R$ 0</div>
-              <div className="text-slate-600 text-xs sm:text-sm font-medium mb-3 sm:mb-4">Receita</div>
-              <div className="h-1.5 sm:h-2 bg-emerald-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full w-4/5"></div>
-              </div>
+              <div className="text-3xl font-extrabold text-blue-600 mb-1">2</div>
+              <div className="text-xs text-slate-500">Matrículas ativas</div>
             </div>
+
+            <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <span className="text-2xl">📄</span>
+                </div>
+                <div className="text-xs font-semibold text-slate-600">Documentos</div>
+              </div>
+              <div className="text-3xl font-extrabold text-purple-600 mb-1">0</div>
+              <div className="text-xs text-slate-500">Pendências</div>
+            </div>
+
+            <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <div className="text-xs font-semibold text-slate-600">Eventos</div>
+              </div>
+              <div className="text-3xl font-extrabold text-amber-600 mb-1">0</div>
+              <div className="text-xs text-slate-500">Mês corrente</div>
+            </div>
+
+            <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <span className="text-2xl">💳</span>
+                </div>
+                <div className="text-xs font-semibold text-slate-600">Mensalidades</div>
+              </div>
+              <div className="text-3xl font-extrabold text-emerald-600 mb-1">R$ 0</div>
+              <div className="text-xs text-slate-500">Receita</div>
+            </div>
+          </div>
+
+          {/* Cards de Ações Rápidas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {panels.map((p) => {
+              const Icon = p.icon as any;
+              return (
+                <Link key={p.href} href={p.href}>
+                  <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-lg transition-all cursor-pointer group border border-slate-200 hover:border-blue-300">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${p.accent} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                        <Icon />
+                      </div>
+                      {p.tag && (
+                        <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-bold">
+                          {p.tag}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xl font-bold text-slate-800 mb-1">{p.title}</div>
+                    <div className="text-sm text-slate-600 mb-3">{p.subtitle}</div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">{p.indicator}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${p.statusClass}`}>
+                        {p.statusText}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

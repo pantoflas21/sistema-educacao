@@ -1,78 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- Logo Aletheia - Versão melhorada -->
+  <!-- Logo Aletheia - Versão final baseada na imagem fornecida -->
   <defs>
     <linearGradient id="flameGradient" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#F97316" stop-opacity="1"/>
-      <stop offset="50%" stop-color="#FB923C" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#FDBA74" stop-opacity="0.9"/>
-    </linearGradient>
-    <linearGradient id="signalGradient" x1="0%" y1="50%" x2="100%" y1="50%">
       <stop offset="0%" stop-color="#1f2937" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#374151" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#374151" stop-opacity="0.9"/>
     </linearGradient>
   </defs>
   
-  <!-- Chama/Sinal principal -->
+  <!-- Chama/Sinal principal - Estilo mais refinado -->
   <g transform="translate(100, 100)">
-    <!-- Chama exterior -->
-    <path d="M -40 -60 Q -45 -80 -30 -90 Q -15 -100 0 -95 Q 15 -100 30 -90 Q 45 -80 40 -60 Q 42 -45 35 -35 Q 30 -25 0 -10 Q -30 -25 -35 -35 Q -42 -45 -40 -60 Z" 
+    <!-- Chama exterior - Forma mais elegante -->
+    <path d="M -35 -55 Q -40 -75 -25 -85 Q -10 -95 0 -90 Q 10 -95 25 -85 Q 40 -75 35 -55 Q 38 -40 30 -30 Q 25 -20 0 -5 Q -25 -20 -30 -30 Q -38 -40 -35 -55 Z" 
           fill="url(#flameGradient)" 
           opacity="0.95"/>
     
-    <!-- Chama interna -->
-    <path d="M -25 -50 Q -30 -65 -20 -72 Q -10 -78 0 -75 Q 10 -78 20 -72 Q 30 -65 25 -50 Q 27 -38 22 -30 Q 18 -22 0 -12 Q -18 -22 -22 -30 Q -27 -38 -25 -50 Z" 
+    <!-- Chama interna - Mais sutil -->
+    <path d="M -20 -45 Q -25 -60 -15 -67 Q -5 -73 0 -70 Q 5 -73 15 -67 Q 25 -60 20 -45 Q 27 -33 20 -25 Q 15 -17 0 -7 Q -15 -17 -20 -25 Q -27 -33 -20 -45 Z" 
           fill="#FFF" 
-          opacity="0.3"/>
+          opacity="0.25"/>
     
     <!-- Círculo central -->
-    <circle cx="0" cy="-15" r="8" fill="#1f2937"/>
+    <circle cx="0" cy="-12" r="7" fill="#1f2937"/>
     
-    <!-- Sinais de Wi-Fi - Esquerda -->
-    <path d="M -20 -15 Q -35 -15 -45 -25" 
-          stroke="url(#signalGradient)" 
-          stroke-width="4" 
+    <!-- Sinais de Wi-Fi - Esquerda (3 curvas) -->
+    <path d="M -18 -12 Q -32 -12 -40 -20" 
+          stroke="#1f2937" 
+          stroke-width="3.5" 
           stroke-linecap="round" 
           fill="none" 
-          opacity="0.9"/>
-    <path d="M -15 -15 Q -25 -15 -32 -22" 
-          stroke="url(#signalGradient)" 
-          stroke-width="3" 
-          stroke-linecap="round" 
-          fill="none" 
-          opacity="0.7"/>
-    <path d="M -10 -15 Q -18 -15 -23 -20" 
-          stroke="url(#signalGradient)" 
-          stroke-width="2" 
-          stroke-linecap="round" 
-          fill="none" 
-          opacity="0.5"/>
-    
-    <!-- Sinais de Wi-Fi - Direita -->
-    <path d="M 20 -15 Q 35 -15 45 -25" 
-          stroke="url(#signalGradient)" 
-          stroke-width="4" 
-          stroke-linecap="round" 
-          fill="none" 
-          opacity="0.9"/>
-    <path d="M 15 -15 Q 25 -15 32 -22" 
-          stroke="url(#signalGradient)" 
-          stroke-width="3" 
-          stroke-linecap="round" 
-          fill="none" 
-          opacity="0.7"/>
-    <path d="M 10 -15 Q 18 -15 23 -20" 
-          stroke="url(#signalGradient)" 
-          stroke-width="2" 
-          stroke-linecap="round" 
-          fill="none" 
-          opacity="0.5"/>
-    
-    <!-- Linha curva superior esquerda -->
-    <path d="M -28 -50 Q -35 -60 -40 -75 Q -38 -85 -30 -92" 
+          opacity="0.85"/>
+    <path d="M -13 -12 Q -22 -12 -28 -18" 
           stroke="#1f2937" 
           stroke-width="2.5" 
           stroke-linecap="round" 
           fill="none" 
-          opacity="0.6"/>
+          opacity="0.65"/>
+    <path d="M -8 -12 Q -15 -12 -19 -16" 
+          stroke="#1f2937" 
+          stroke-width="1.8" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.45"/>
+    
+    <!-- Sinais de Wi-Fi - Direita (3 curvas) -->
+    <path d="M 18 -12 Q 32 -12 40 -20" 
+          stroke="#1f2937" 
+          stroke-width="3.5" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.85"/>
+    <path d="M 13 -12 Q 22 -12 28 -18" 
+          stroke="#1f2937" 
+          stroke-width="2.5" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.65"/>
+    <path d="M 8 -12 Q 15 -12 19 -16" 
+          stroke="#1f2937" 
+          stroke-width="1.8" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.45"/>
+    
+    <!-- Linha curva superior esquerda - Mais elegante -->
+    <path d="M -25 -45 Q -30 -55 -35 -70 Q -33 -78 -26 -84" 
+          stroke="#1f2937" 
+          stroke-width="2" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.55"/>
   </g>
 </svg>

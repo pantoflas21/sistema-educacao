@@ -22,7 +22,7 @@ export default function TeacherSubjects() {
         ]
       };
       
-      const default = defaultSubjects[classId] || [];
+      const defaultSubjectsList = defaultSubjects[classId] || [];
       
       try {
         const r = await fetch(`/api/teacher/subjects?classId=${classId}`, {
@@ -35,13 +35,13 @@ export default function TeacherSubjects() {
         
         const contentType = r.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json") || !r.ok) {
-          return default;
+          return defaultSubjectsList;
         }
         
         const json = await r.json();
-        return Array.isArray(json) && json.length > 0 ? json : default;
+        return Array.isArray(json) && json.length > 0 ? json : defaultSubjectsList;
       } catch {
-        return default;
+        return defaultSubjectsList;
       }
     },
     retry: 1,

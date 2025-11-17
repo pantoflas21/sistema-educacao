@@ -6,8 +6,47 @@ type ClassItem = { id: string; name: string; studentsCount: number; termId: stri
 export default function TeacherClasses() {
   const [, params] = useRoute("/teacher/:termId/classes");
   const termId = params?.termId || "";
-  const { data } = useQuery<ClassItem[]>({ queryKey: ["teacher","classes",termId], queryFn: async ({ signal }) => { const r = await fetch(`/api/teacher/classes?termId=${termId}`, { signal }); return r.json(); } });
+  const { data, isLoading, error } = useQuery<ClassItem[]>({ 
+    queryKey: ["teacher","classes",termId], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch(`/api/teacher/classes?termId=${termId}`, { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar turmas");
+      return r.json(); 
+    },
+    retry: 2,
+    staleTime: 30000,
+    enabled: !!termId
+  });
   const totalStudents = (data||[]).reduce((sum, c) => sum + c.studentsCount, 0);
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4 animate-spin">⏳</div>
+          <div className="text-slate-600">Carregando turmas...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <div className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar turmas</div>
+          <div className="text-slate-600 mb-6">Tente recarregar a página.</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600"
+          >
+            🔄 Recarregar
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 text-slate-900">

@@ -39,8 +39,48 @@ const getStatusConfig = (status: Term["status"]) => {
 };
 
 export default function TeacherTerms() {
-  const { data } = useQuery<Term[]>({ queryKey: ["teacher","terms"], queryFn: async ({ signal }) => { const r = await fetch("/api/teacher/terms", { signal }); return r.json(); } });
+  const { data, isLoading, error } = useQuery<Term[]>({ 
+    queryKey: ["teacher","terms"], 
+    queryFn: async ({ signal }) => { 
+      const r = await fetch("/api/teacher/terms", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar bimestres");
+      return r.json(); 
+    },
+    retry: 2,
+    staleTime: 30000
+  });
+  
   const activeCount = (data||[]).filter(t => t.status === "active").length;
+  
+  // Mostrar mensagem se não houver dados ou erro
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4 animate-spin">⏳</div>
+          <div className="text-slate-600">Carregando bimestres...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error || !data || data.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <div className="text-xl font-bold text-slate-800 mb-2">Nenhum bimestre encontrado</div>
+          <div className="text-slate-600 mb-6">Verifique se o ano letivo foi configurado corretamente.</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600"
+          >
+            🔄 Recarregar
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 text-slate-900">

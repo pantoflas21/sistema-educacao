@@ -35,24 +35,33 @@ export default function TeacherTools() {
     queryKey: ["teacher", "students", classId], 
     queryFn: async ({ signal }) => { 
       const r = await fetch(`/api/teacher/students?classId=${classId}`, { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar alunos");
       return r.json(); 
-    } 
+    },
+    retry: 2,
+    enabled: !!classId
   });
   
   const lessonsQ = useQuery<Lesson[]>({ 
     queryKey: ["teacher", "lessons", classId, subjectId], 
     queryFn: async ({ signal }) => { 
       const r = await fetch(`/api/teacher/lessons?classId=${classId}&subjectId=${subjectId}`, { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar aulas");
       return r.json(); 
-    } 
+    },
+    retry: 2,
+    enabled: !!classId && !!subjectId
   });
   
   const gradesQ = useQuery<GradeRow[]>({ 
     queryKey: ["teacher", "grades", classId, subjectId], 
     queryFn: async ({ signal }) => { 
       const r = await fetch(`/api/teacher/grades/grid?classId=${classId}&subjectId=${subjectId}`, { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar notas");
       return r.json(); 
-    } 
+    },
+    retry: 2,
+    enabled: !!classId && !!subjectId
   });
 
   const createLesson = useMutation({ 
@@ -129,6 +138,24 @@ export default function TeacherTools() {
     { id: "provas", label: "Criar Provas", icon: "📄" },
     { id: "educacao-especial", label: "Educação Especial", icon: "🤝" },
   ];
+
+  // Verificar se há dados necessários
+  if (!termId || !classId || !subjectId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <div className="text-xl font-bold text-slate-800 mb-2">Informações incompletas</div>
+          <div className="text-slate-600 mb-6">Bimestre, turma ou disciplina não selecionados.</div>
+          <Link href="/teacher">
+            <button className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600">
+              ← Voltar para Bimestres
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 text-slate-900">
@@ -278,6 +305,18 @@ export default function TeacherTools() {
               {/* Histórico de Aulas */}
               <div>
                 <h3 className="text-xl font-bold text-slate-800 mb-4">Histórico de Aulas</h3>
+                {lessonsQ.isLoading && (
+                  <div className="card-modern p-8 text-center">
+                    <div className="text-4xl mb-4 animate-spin">⏳</div>
+                    <div className="text-slate-600">Carregando aulas...</div>
+                  </div>
+                )}
+                {lessonsQ.error && (
+                  <div className="card-modern p-6 bg-rose-50 border-rose-200">
+                    <div className="text-rose-800 font-semibold mb-2">⚠️ Erro ao carregar aulas</div>
+                    <div className="text-rose-600 text-sm">Tente recarregar a página.</div>
+                  </div>
+                )}
                 <div className="grid gap-4">
                   {(lessonsQ.data || []).map((lesson) => (
                     <div key={lesson.id} className="card-modern p-6">
@@ -310,10 +349,11 @@ export default function TeacherTools() {
                       </div>
                     </div>
                   ))}
-                  {(!lessonsQ.data || lessonsQ.data.length === 0) && (
+                  {!lessonsQ.isLoading && !lessonsQ.error && (!lessonsQ.data || lessonsQ.data.length === 0) && (
                     <div className="card-modern p-8 text-center">
                       <div className="text-4xl mb-3">📝</div>
-                      <div className="text-slate-600">Nenhuma aula cadastrada ainda.</div>
+                      <div className="text-slate-600 font-medium">Nenhuma aula cadastrada ainda.</div>
+                      <div className="text-sm text-slate-500 mt-2">Use o botão acima para criar sua primeira aula.</div>
                     </div>
                   )}
                 </div>
@@ -345,6 +385,24 @@ export default function TeacherTools() {
                 </div>
               </div>
 
+              {studentsQ.isLoading && (
+                <div className="card-modern p-8 text-center">
+                  <div className="text-4xl mb-4 animate-spin">⏳</div>
+                  <div className="text-slate-600">Carregando alunos...</div>
+                </div>
+              )}
+              {studentsQ.error && (
+                <div className="card-modern p-6 bg-rose-50 border-rose-200 mb-6">
+                  <div className="text-rose-800 font-semibold mb-2">⚠️ Erro ao carregar alunos</div>
+                  <div className="text-rose-600 text-sm">Tente recarregar a página.</div>
+                </div>
+              )}
+              {!studentsQ.isLoading && !studentsQ.error && (!studentsQ.data || studentsQ.data.length === 0) && (
+                <div className="card-modern p-8 text-center">
+                  <div className="text-4xl mb-3">👥</div>
+                  <div className="text-slate-600 font-medium">Nenhum aluno encontrado nesta turma.</div>
+                </div>
+              )}
               <div className="grid gap-3">
                 {(studentsQ.data || []).map((student) => (
                   <div key={student.id} className="card-modern p-4">
@@ -404,6 +462,18 @@ export default function TeacherTools() {
                 </div>
               </div>
 
+              {gradesQ.isLoading && (
+                <div className="card-modern p-8 text-center">
+                  <div className="text-4xl mb-4 animate-spin">⏳</div>
+                  <div className="text-slate-600">Carregando notas...</div>
+                </div>
+              )}
+              {gradesQ.error && (
+                <div className="card-modern p-6 bg-rose-50 border-rose-200 mb-6">
+                  <div className="text-rose-800 font-semibold mb-2">⚠️ Erro ao carregar notas</div>
+                  <div className="text-rose-600 text-sm">Tente recarregar a página.</div>
+                </div>
+              )}
               <div className="card-modern overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -449,6 +519,15 @@ export default function TeacherTools() {
                           </tr>
                         );
                       })}
+                      {!gradesQ.isLoading && !gradesQ.error && (!gradesQ.data || gradesQ.data.length === 0) && (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-slate-600">
+                            <div className="text-4xl mb-2">📊</div>
+                            <div className="font-medium">Nenhuma nota cadastrada ainda.</div>
+                            <div className="text-sm text-slate-500 mt-1">Comece a lançar notas nos campos acima.</div>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

@@ -3,8 +3,53 @@ import { Link } from "wouter";
 
 type Term = { id: string; number: number; status: "active"|"locked"|"completed"; startDate: string; endDate: string };
 
+// Dados padrão sempre disponíveis (SEM PRÉ-REQUISITOS) - definido ANTES de usar
+function getDefaultTerms(): Term[] {
+  return [
+    { id: "term1", number: 1, status: "active", startDate: "2025-02-01", endDate: "2025-03-31" },
+    { id: "term2", number: 2, status: "locked", startDate: "2025-04-01", endDate: "2025-05-31" },
+    { id: "term3", number: 3, status: "locked", startDate: "2025-06-01", endDate: "2025-07-31" },
+    { id: "term4", number: 4, status: "locked", startDate: "2025-08-01", endDate: "2025-09-30" }
+  ];
+}
+
+const getStatusConfig = (status: Term["status"]) => {
+  switch (status) {
+    case "active":
+      return {
+        gradient: "from-blue-500 to-blue-600",
+        bg: "bg-blue-50",
+        text: "text-blue-700",
+        border: "border-blue-200",
+        icon: "⏱",
+        label: "Ativo",
+        iconBg: "bg-blue-100"
+      };
+    case "completed":
+      return {
+        gradient: "from-emerald-500 to-emerald-600",
+        bg: "bg-emerald-50",
+        text: "text-emerald-700",
+        border: "border-emerald-200",
+        icon: "✔",
+        label: "Concluído",
+        iconBg: "bg-emerald-100"
+      };
+    default:
+      return {
+        gradient: "from-slate-400 to-slate-500",
+        bg: "bg-slate-50",
+        text: "text-slate-600",
+        border: "border-slate-200",
+        icon: "🔒",
+        label: "Bloqueado",
+        iconBg: "bg-slate-100"
+      };
+  }
+};
+
 export default function TeacherTerms() {
-  const { data, isLoading, error } = useQuery<Term[]>({ 
+  const { data, isLoading } = useQuery<Term[]>({ 
     queryKey: ["teacher","terms"], 
     queryFn: async () => {
       // Tentar buscar da API
@@ -45,57 +90,13 @@ export default function TeacherTerms() {
     },
     staleTime: 60000, // Cache por 1 minuto
     retry: 1, // Apenas 1 tentativa
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    initialData: getDefaultTerms() // Dados iniciais garantidos
   });
-
-  // Dados padrão sempre disponíveis (SEM PRÉ-REQUISITOS)
-  function getDefaultTerms(): Term[] {
-    return [
-      { id: "term1", number: 1, status: "active", startDate: "2025-02-01", endDate: "2025-03-31" },
-      { id: "term2", number: 2, status: "locked", startDate: "2025-04-01", endDate: "2025-05-31" },
-      { id: "term3", number: 3, status: "locked", startDate: "2025-06-01", endDate: "2025-07-31" },
-      { id: "term4", number: 4, status: "locked", startDate: "2025-08-01", endDate: "2025-09-30" }
-    ];
-  }
 
   // SEMPRE usar dados (da API ou padrão)
   const terms = data || getDefaultTerms();
   const activeCount = terms.filter(t => t.status === "active").length;
-
-  const getStatusConfig = (status: Term["status"]) => {
-    switch (status) {
-      case "active":
-        return {
-          gradient: "from-blue-500 to-blue-600",
-          bg: "bg-blue-50",
-          text: "text-blue-700",
-          border: "border-blue-200",
-          icon: "⏱",
-          label: "Ativo",
-          iconBg: "bg-blue-100"
-        };
-      case "completed":
-        return {
-          gradient: "from-emerald-500 to-emerald-600",
-          bg: "bg-emerald-50",
-          text: "text-emerald-700",
-          border: "border-emerald-200",
-          icon: "✔",
-          label: "Concluído",
-          iconBg: "bg-emerald-100"
-        };
-      default:
-        return {
-          gradient: "from-slate-400 to-slate-500",
-          bg: "bg-slate-50",
-          text: "text-slate-600",
-          border: "border-slate-200",
-          icon: "🔒",
-          label: "Bloqueado",
-          iconBg: "bg-slate-100"
-        };
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 text-slate-900">

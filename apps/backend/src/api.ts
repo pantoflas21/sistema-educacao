@@ -135,7 +135,13 @@ const attendance: Record<string, { studentId: string; status: "P"|"F"|"J"; date:
 const grades: Record<string, { n1: number; n2: number; n3: number; n4: number }> = {};
 
 app.get("/api/teacher/terms", (req, res) => {
-  res.json(demoData.terms);
+  try {
+    console.log("GET /api/teacher/terms - Retornando", demoData.terms.length, "bimestres");
+    res.json(demoData.terms);
+  } catch (error) {
+    console.error("Erro ao retornar bimestres:", error);
+    res.status(500).json({ error: "Erro ao carregar bimestres" });
+  }
 });
 
 app.get("/api/teacher/classes", (req, res) => {

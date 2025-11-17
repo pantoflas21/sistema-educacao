@@ -42,11 +42,23 @@ export default function TeacherTerms() {
   const { data, isLoading, error } = useQuery<Term[]>({ 
     queryKey: ["teacher","terms"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/teacher/terms", { signal }); 
-      if (!r.ok) throw new Error("Erro ao carregar bimestres");
-      return r.json(); 
+      try {
+        const r = await fetch("/api/teacher/terms", { signal }); 
+        if (!r.ok) {
+          const errorText = await r.text();
+          console.error("Erro ao carregar bimestres:", r.status, errorText);
+          throw new Error(`Erro ${r.status}: ${errorText || "Erro ao carregar bimestres"}`);
+        }
+        const json = await r.json();
+        console.log("Bimestres carregados:", json);
+        return json;
+      } catch (err) {
+        console.error("Erro na query de bimestres:", err);
+        throw err;
+      }
     },
-    retry: 2,
+    retry: 3,
+    retryDelay: 1000,
     staleTime: 30000
   });
   

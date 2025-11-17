@@ -59,3 +59,4 @@ npm run build
 - ⚠️ Configure variáveis de ambiente na Vercel (DATABASE_URL, JWT_SECRET, etc.)
 
 
+

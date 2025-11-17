@@ -62,12 +62,15 @@ export default function AdminDashboard() {
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const qc = useQueryClient();
 
-  const { data } = useQuery<Overview>({ 
+  const { data, isLoading, error } = useQuery<Overview>({ 
     queryKey: ["overview"], 
     queryFn: async ({ signal }) => { 
       const r = await fetch("/api/statistics/overview", { signal }); 
+      if (!r.ok) throw new Error("Erro ao carregar estatísticas");
       return r.json(); 
-    } 
+    },
+    retry: 2,
+    staleTime: 30000
   });
 
   const usersQ = useQuery<User[]>({ 
@@ -136,6 +139,18 @@ export default function AdminDashboard() {
   });
 
   const healthColor = (data?.systemHealth ?? 0) >= 90 ? "text-emerald-500" : (data?.systemHealth ?? 0) >= 70 ? "text-amber-500" : "text-rose-500";
+  
+  // Debug: verificar se os dados estão sendo carregados
+  if (error) {
+    console.error("❌ Erro ao carregar estatísticas do admin:", error);
+  }
+  if (isLoading) {
+    console.log("⏳ Carregando estatísticas do admin...");
+  }
+  if (data) {
+    console.log("✅ Dados do admin carregados:", data);
+    console.log("✅ Saúde do sistema:", data.systemHealth);
+  }
 
   const sections = [
     { id: "overview", label: "Visão Geral", icon: "📊" },

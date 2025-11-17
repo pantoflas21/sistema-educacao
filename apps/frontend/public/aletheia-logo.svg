@@ -7,9 +7,9 @@
     </linearGradient>
   </defs>
   
-  <!-- Chama/Sinal principal - Estilo mais refinado -->
-  <g transform="translate(100, 100)">
-    <!-- Chama exterior - Forma mais elegante -->
+  <!-- Chama/Sinal principal - Estilo baseado na imagem exata -->
+  <g transform="translate(100, 80)">
+    <!-- Chama exterior - Forma elegante com 3 lóbulos -->
     <path d="M -35 -55 Q -40 -75 -25 -85 Q -10 -95 0 -90 Q 10 -95 25 -85 Q 40 -75 35 -55 Q 38 -40 30 -30 Q 25 -20 0 -5 Q -25 -20 -30 -30 Q -38 -40 -35 -55 Z" 
           fill="url(#flameGradient)" 
           opacity="0.95"/>
@@ -22,7 +22,7 @@
     <!-- Círculo central -->
     <circle cx="0" cy="-12" r="7" fill="#1f2937"/>
     
-    <!-- Sinais de Wi-Fi - Esquerda (3 curvas) -->
+    <!-- Sinais de Wi-Fi - Esquerda (3 curvas concêntricas) -->
     <path d="M -18 -12 Q -32 -12 -40 -20" 
           stroke="#1f2937" 
           stroke-width="3.5" 
@@ -42,7 +42,7 @@
           fill="none" 
           opacity="0.45"/>
     
-    <!-- Sinais de Wi-Fi - Direita (3 curvas) -->
+    <!-- Sinais de Wi-Fi - Direita (3 curvas concêntricas) -->
     <path d="M 18 -12 Q 32 -12 40 -20" 
           stroke="#1f2937" 
           stroke-width="3.5" 
@@ -62,7 +62,7 @@
           fill="none" 
           opacity="0.45"/>
     
-    <!-- Linha curva superior esquerda - Mais elegante -->
+    <!-- Linha curva superior esquerda - Seguindo o contorno da chama -->
     <path d="M -25 -45 Q -30 -55 -35 -70 Q -33 -78 -26 -84" 
           stroke="#1f2937" 
           stroke-width="2" 
@@ -70,4 +70,10 @@
           fill="none" 
           opacity="0.55"/>
   </g>
+  
+  <!-- Texto "Aletheia" em serif - Baseado na imagem -->
+  <text x="100" y="140" font-family="serif" font-size="32" font-weight="bold" fill="#1f2937" text-anchor="middle">
+    <tspan fill="#1f2937">A</tspan>
+    <tspan fill="#374151">letheia</tspan>
+  </text>
 </svg>

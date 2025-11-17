@@ -42,3 +42,4 @@ E configure na interface da Vercel:
 
 **Tente primeiro o build.js. Se não funcionar, use a Opção 1! 🎯**
 
+

@@ -29,12 +29,14 @@ import EdSecretaryReports from "./pages/edu/EdSecretaryReports";
 import EdSecretarySchools from "./pages/edu/EdSecretarySchools";
 import EdSecretaryPlanning from "./pages/edu/EdSecretaryPlanning";
 import DesignReview from "./pages/DesignReview";
+import TestSupabase from "./pages/TestSupabase";
 
 export default function App() {
   return (
     <Switch>
       <Route path="/" component={HierarchyDashboard} />
       <Route path="/review" component={DesignReview} />
+      <Route path="/test-supabase" component={TestSupabase} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/teacher" component={TeacherTerms} />
       <Route path="/teacher/:termId/classes" component={TeacherClasses} />

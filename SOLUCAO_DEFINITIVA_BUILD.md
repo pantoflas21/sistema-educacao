@@ -47,3 +47,4 @@ O comando `npm run build` está falhando na Vercel porque:
 
 **Teste agora! Deve funcionar! 🎉**
 
+

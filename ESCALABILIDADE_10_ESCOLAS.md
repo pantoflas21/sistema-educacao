@@ -88,3 +88,4 @@
 - Vercel Pro: $20/mês
 - **Total: $70-170/mês**
 
+

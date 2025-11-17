@@ -6,9 +6,19 @@ const fs = require('fs');
 console.log('🚀 Iniciando build do Aletheia...');
 
 try {
+  // Verificar se as dependências do backend estão instaladas
+  const backendPath = path.join(__dirname, 'apps', 'backend');
+  const backendNodeModules = path.join(backendPath, 'node_modules');
+  
+  if (!fs.existsSync(backendNodeModules)) {
+    console.log('📦 Instalando dependências do backend...');
+    process.chdir(backendPath);
+    execSync('npm install', { stdio: 'inherit' });
+  }
+  
+  // Build do frontend
   const frontendPath = path.join(__dirname, 'apps', 'frontend');
   
-  // Verifica se a pasta existe
   if (!fs.existsSync(frontendPath)) {
     throw new Error(`Pasta frontend não encontrada: ${frontendPath}`);
   }

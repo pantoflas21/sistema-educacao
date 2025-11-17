@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "node build.js",
   "outputDirectory": "apps/frontend/dist",
-  "installCommand": "cd apps/frontend && npm install",
+  "installCommand": "cd apps/backend && npm install && cd ../frontend && npm install",
   "framework": "vite",
   "rewrites": [
     {

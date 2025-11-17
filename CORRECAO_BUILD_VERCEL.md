@@ -72,3 +72,4 @@ O problema estava no `buildCommand` do `vercel.json` usando `&&` que pode não f
 
 **Pronto! Agora deve funcionar! 🎉**
 
+

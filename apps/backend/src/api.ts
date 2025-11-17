@@ -39,6 +39,14 @@ app.use(helmet({
   },
 }));
 
+// OPTIONS handler para CORS
+app.options("*", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.status(200).end();
+});
+
 app.use(authMiddleware);
 
 app.get("/api/health", (req, res) => {
@@ -94,7 +102,22 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.get("/api/statistics/overview", (req, res) => {
-  res.json({ systemHealth: 98, activeUsers: 120, connectedSchools: 5, responseTimeMsP95: 120, resourcesUsage: { cpu: 35, memory: 48 }, engagement: { dailyActive: 80, weeklyActive: 220 }, errorsLastHour: 1 });
+  try {
+    const data = { 
+      systemHealth: 98, 
+      activeUsers: 120, 
+      connectedSchools: 5, 
+      responseTimeMsP95: 120, 
+      resourcesUsage: { cpu: 35, memory: 48 }, 
+      engagement: { dailyActive: 80, weeklyActive: 220 }, 
+      errorsLastHour: 1 
+    };
+    console.log("GET /api/statistics/overview - Retornando:", data);
+    res.json(data);
+  } catch (error) {
+    console.error("Erro ao retornar estatísticas:", error);
+    res.status(500).json({ error: "Erro ao carregar estatísticas" });
+  }
 });
 
 const demoData = {
@@ -136,66 +159,133 @@ const grades: Record<string, { n1: number; n2: number; n3: number; n4: number }>
 
 app.get("/api/teacher/terms", (req, res) => {
   try {
-    console.log("GET /api/teacher/terms - Retornando", demoData.terms.length, "bimestres");
-    res.json(demoData.terms);
+    const terms = demoData.terms;
+    console.log("✅ GET /api/teacher/terms - Retornando", terms.length, "bimestres");
+    console.log("📋 Dados:", JSON.stringify(terms, null, 2));
+    
+    // Headers CORS
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    // Retornar dados
+    res.status(200).json(terms);
   } catch (error) {
-    console.error("Erro ao retornar bimestres:", error);
-    res.status(500).json({ error: "Erro ao carregar bimestres" });
+    console.error("❌ Erro ao retornar bimestres:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao carregar bimestres", 
+      details: String(error),
+      message: "Erro interno do servidor"
+    });
   }
 });
 
 app.get("/api/teacher/classes", (req, res) => {
-  const termId = String(req.query.termId || "");
-  res.json(demoData.classes.map(c => ({ ...c, termId })));
+  try {
+    const termId = String(req.query.termId || "");
+    const classes = demoData.classes.map(c => ({ ...c, termId }));
+    console.log("✅ GET /api/teacher/classes - Retornando", classes.length, "turmas para termId:", termId);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(classes);
+  } catch (error) {
+    console.error("❌ Erro ao retornar turmas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar turmas", details: String(error) });
+  }
 });
 
 app.get("/api/teacher/subjects", (req, res) => {
-  const classId = String(req.query.classId || "");
-  const list = (demoData.subjectsByClass as any)[classId] || [];
-  res.json(list);
+  try {
+    const classId = String(req.query.classId || "");
+    const list = (demoData.subjectsByClass as any)[classId] || [];
+    console.log("✅ GET /api/teacher/subjects - Retornando", list.length, "disciplinas para classId:", classId);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar disciplinas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar disciplinas", details: String(error) });
+  }
 });
 
 app.get("/api/teacher/students", (req, res) => {
-  const classId = String(req.query.classId || "");
-  const list = (demoData.studentsByClass as any)[classId] || [];
-  res.json(list);
+  try {
+    const classId = String(req.query.classId || "");
+    const list = (demoData.studentsByClass as any)[classId] || [];
+    console.log("✅ GET /api/teacher/students - Retornando", list.length, "alunos para classId:", classId);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar alunos:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar alunos", details: String(error) });
+  }
 });
 
 app.get("/api/teacher/lessons", (req, res) => {
-  const { classId, subjectId } = req.query as any;
-  const list = lessons.filter(l => l.classId === classId && l.subjectId === subjectId);
-  res.json(list);
+  try {
+    const classId = String(req.query.classId || "");
+    const subjectId = String(req.query.subjectId || "");
+    const list = lessons.filter(l => l.classId === classId && l.subjectId === subjectId);
+    console.log("✅ GET /api/teacher/lessons - Retornando", list.length, "aulas para classId:", classId, "subjectId:", subjectId);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar aulas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar aulas", details: String(error) });
+  }
 });
 
 app.post("/api/teacher/lessons", (req, res) => {
-  const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
-  
-  // Validação básica
-  if (!classId || !subjectId || !title || !lessonDate) {
-    return res.status(400).json({ error: "Campos obrigatórios: classId, subjectId, title, lessonDate" });
+  try {
+    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
+    
+    // Validação básica
+    if (!classId || !subjectId || !title || !lessonDate) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.status(400).json({ error: "Campos obrigatórios: classId, subjectId, title, lessonDate" });
+    }
+    
+    const id = `lesson-${Date.now()}`;
+    const item = { 
+      id, 
+      classId: String(classId), 
+      subjectId: String(subjectId), 
+      title: String(title), 
+      content: String(content || ""), 
+      lessonDate: String(lessonDate),
+      startTime: startTime ? String(startTime) : undefined,
+      endTime: endTime ? String(endTime) : undefined,
+      objectives: objectives ? String(objectives) : undefined,
+      methodology: methodology ? String(methodology) : undefined,
+      resources: resources ? String(resources) : undefined,
+    };
+    lessons.push(item);
+    console.log("✅ POST /api/teacher/lessons - Aula criada:", item.id);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(201).json(item);
+  } catch (error) {
+    console.error("❌ Erro ao criar aula:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao criar aula", details: String(error) });
   }
-  
-  const id = `lesson-${Date.now()}`;
-  const item = { 
-    id, 
-    classId: String(classId), 
-    subjectId: String(subjectId), 
-    title: String(title), 
-    content: String(content || ""), 
-    lessonDate: String(lessonDate),
-    startTime: startTime ? String(startTime) : undefined,
-    endTime: endTime ? String(endTime) : undefined,
-    objectives: objectives ? String(objectives) : undefined,
-    methodology: methodology ? String(methodology) : undefined,
-    resources: resources ? String(resources) : undefined,
-  };
-  lessons.push(item);
-  res.status(201).json(item);
 });
 
 app.get("/api/teacher/attendance", (req, res) => {
-  const dateKey = String(req.query.date || "");
-  res.json(attendance[dateKey] || []);
+  try {
+    const dateKey = String(req.query.date || "");
+    const list = attendance[dateKey] || [];
+    console.log("✅ GET /api/teacher/attendance - Retornando", list.length, "presenças para data:", dateKey);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar presenças:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar presenças", details: String(error) });
+  }
 });
 
 app.post("/api/teacher/attendance", (req, res) => {
@@ -204,11 +294,13 @@ app.post("/api/teacher/attendance", (req, res) => {
     
     // Validação
     if (!studentId || !status || !date || !classId || !subjectId) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "Campos obrigatórios: studentId, status, date, classId, subjectId" });
     }
     
     // Validar status
     if (!["P", "F", "J"].includes(String(status))) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "status_invalid" });
     }
     
@@ -222,23 +314,35 @@ app.post("/api/teacher/attendance", (req, res) => {
     const idx = attendance[key].findIndex(m => m.studentId === cleanStudentId && m.classId === cleanClassId && m.subjectId === cleanSubjectId);
     const item = { studentId: cleanStudentId, status: status as "P" | "F" | "J", date: key, classId: cleanClassId, subjectId: cleanSubjectId } as const;
     if (idx >= 0) attendance[key][idx] = item as any; else attendance[key].push(item as any);
+    console.log("✅ POST /api/teacher/attendance - Presença registrada:", item);
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(201).json(item);
   } catch (error) {
-    console.error("Attendance error:", error);
-    res.status(500).json({ error: "internal_server_error" });
+    console.error("❌ Erro ao registrar presença:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "internal_server_error", details: String(error) });
   }
 });
 
 app.get("/api/teacher/grades/grid", (req, res) => {
-  const { classId, subjectId } = req.query as any;
-  const students = (demoData.studentsByClass as any)[classId] || [];
-  const grid = students.map((s: any) => {
-    const key = `${classId}:${s.id}`;
-    const g = grades[key] || { n1: 0, n2: 0, n3: 0, n4: 0 };
-    const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
-    return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
-  });
-  res.json(grid);
+  try {
+    const classId = String(req.query.classId || "");
+    const subjectId = String(req.query.subjectId || "");
+    const students = (demoData.studentsByClass as any)[classId] || [];
+    const grid = students.map((s: any) => {
+      const key = `${classId}:${s.id}`;
+      const g = grades[key] || { n1: 0, n2: 0, n3: 0, n4: 0 };
+      const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
+      return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
+    });
+    console.log("✅ GET /api/teacher/grades/grid - Retornando", grid.length, "notas para classId:", classId, "subjectId:", subjectId);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(grid);
+  } catch (error) {
+    console.error("❌ Erro ao retornar notas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar notas", details: String(error) });
+  }
 });
 
 app.put("/api/teacher/grades", (req, res) => {
@@ -247,6 +351,7 @@ app.put("/api/teacher/grades", (req, res) => {
     
     // Validação
     if (!classId || !studentId) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "Campos obrigatórios: classId, studentId" });
     }
     
@@ -265,10 +370,13 @@ app.put("/api/teacher/grades", (req, res) => {
     };
     const g = grades[key];
     const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
-    res.json({ ok: true, average });
+    console.log("✅ PUT /api/teacher/grades - Notas atualizadas para:", key, "média:", average);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json({ ok: true, average });
   } catch (error) {
-    console.error("Grades error:", error);
-    res.status(500).json({ error: "internal_server_error" });
+    console.error("❌ Erro ao atualizar notas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "internal_server_error", details: String(error) });
   }
 });
 
@@ -279,31 +387,75 @@ const testTemplates: { id: string; title: string; subjectId: string; content: st
 ];
 
 app.get("/api/teacher/tests", (req, res) => {
-  const { classId, subjectId } = req.query as any;
-  const list = tests.filter(t => t.classId === classId && t.subjectId === subjectId);
-  res.json(list);
+  try {
+    const classId = String(req.query.classId || "");
+    const subjectId = String(req.query.subjectId || "");
+    const list = tests.filter(t => t.classId === classId && t.subjectId === subjectId);
+    console.log("✅ GET /api/teacher/tests - Retornando", list.length, "provas");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar provas:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar provas", details: String(error) });
+  }
 });
 
 app.post("/api/teacher/tests", (req, res) => {
-  const { title, classId, subjectId, content } = req.body;
-  const id = `test-${Date.now()}`;
-  const test = { id, title, classId, subjectId, content: content || "", createdAt: new Date().toISOString() };
-  tests.push(test);
-  res.status(201).json(test);
+  try {
+    const { title, classId, subjectId, content } = req.body;
+    if (!title || !classId || !subjectId) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.status(400).json({ error: "Campos obrigatórios: title, classId, subjectId" });
+    }
+    const id = `test-${Date.now()}`;
+    const test = { id, title: String(title), classId: String(classId), subjectId: String(subjectId), content: String(content || ""), createdAt: new Date().toISOString() };
+    tests.push(test);
+    console.log("✅ POST /api/teacher/tests - Prova criada:", id);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(201).json(test);
+  } catch (error) {
+    console.error("❌ Erro ao criar prova:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao criar prova", details: String(error) });
+  }
 });
 
 app.put("/api/teacher/tests", (req, res) => {
-  const { id, title, content } = req.body;
-  const idx = tests.findIndex(t => t.id === id);
-  if (idx < 0) return res.status(404).json({ error: "not_found" });
-  tests[idx] = { ...tests[idx], title, content: content || tests[idx].content, savedAt: new Date().toISOString() };
-  res.json(tests[idx]);
+  try {
+    const { id, title, content } = req.body;
+    if (!id) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.status(400).json({ error: "Campo obrigatório: id" });
+    }
+    const idx = tests.findIndex(t => t.id === id);
+    if (idx < 0) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.status(404).json({ error: "not_found" });
+    }
+    tests[idx] = { ...tests[idx], title: title ? String(title) : tests[idx].title, content: content ? String(content) : tests[idx].content, savedAt: new Date().toISOString() };
+    console.log("✅ PUT /api/teacher/tests - Prova atualizada:", id);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(tests[idx]);
+  } catch (error) {
+    console.error("❌ Erro ao atualizar prova:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao atualizar prova", details: String(error) });
+  }
 });
 
 app.get("/api/teacher/test-templates", (req, res) => {
-  const { subjectId } = req.query as any;
-  const list = testTemplates.filter(t => !subjectId || t.subjectId === subjectId);
-  res.json(list);
+  try {
+    const subjectId = String(req.query.subjectId || "");
+    const list = testTemplates.filter(t => !subjectId || t.subjectId === subjectId);
+    console.log("✅ GET /api/teacher/test-templates - Retornando", list.length, "templates");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(200).json(list);
+  } catch (error) {
+    console.error("❌ Erro ao retornar templates:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao carregar templates", details: String(error) });
+  }
 });
 
 const pedacoinsLedger: { studentId: string; amount: number; type: "award"|"spend"; description: string; date: string }[] = [

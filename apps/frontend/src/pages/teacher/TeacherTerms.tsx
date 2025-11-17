@@ -43,23 +43,45 @@ export default function TeacherTerms() {
     queryKey: ["teacher","terms"], 
     queryFn: async ({ signal }) => { 
       try {
-        const r = await fetch("/api/teacher/terms", { signal }); 
+        console.log("🔄 Buscando bimestres em /api/teacher/terms...");
+        const r = await fetch("/api/teacher/terms", { 
+          signal,
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          method: "GET"
+        }); 
+        
+        console.log("📡 Resposta recebida:", r.status, r.statusText);
+        
         if (!r.ok) {
           const errorText = await r.text();
-          console.error("Erro ao carregar bimestres:", r.status, errorText);
-          throw new Error(`Erro ${r.status}: ${errorText || "Erro ao carregar bimestres"}`);
+          console.error("❌ Erro ao carregar bimestres:", r.status, r.statusText, errorText);
+          throw new Error(`Erro ${r.status}: ${errorText || r.statusText || "Erro ao carregar bimestres"}`);
         }
+        
         const json = await r.json();
-        console.log("Bimestres carregados:", json);
+        console.log("✅ Bimestres carregados com sucesso:", json);
+        
+        if (!Array.isArray(json)) {
+          console.error("❌ Resposta não é um array:", json);
+          throw new Error("Resposta inválida: esperado array de bimestres");
+        }
+        
         return json;
-      } catch (err) {
-        console.error("Erro na query de bimestres:", err);
+      } catch (err: any) {
+        console.error("❌ Erro na query de bimestres:", err);
+        if (err.name === "AbortError") {
+          throw new Error("Requisição cancelada");
+        }
         throw err;
       }
     },
     retry: 3,
-    retryDelay: 1000,
-    staleTime: 30000
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 30000,
+    refetchOnWindowFocus: true
   });
   
   const activeCount = (data||[]).filter(t => t.status === "active").length;
@@ -76,7 +98,27 @@ export default function TeacherTerms() {
     );
   }
   
-  if (error || !data || data.length === 0) {
+  if (error) {
+    console.error("Erro ao carregar bimestres:", error);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <div className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar bimestres</div>
+          <div className="text-slate-600 mb-2">Detalhes do erro:</div>
+          <div className="text-xs text-rose-600 mb-4 font-mono bg-rose-50 p-3 rounded">{String(error)}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600"
+          >
+            🔄 Recarregar
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!data || data.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
         <div className="text-center max-w-md">

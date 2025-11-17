@@ -204,13 +204,18 @@ app.get("/api/teacher/terms", (req, res) => {
 
 app.get("/api/teacher/classes", (req, res) => {
   try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     const termId = String(req.query.termId || "");
     const classes = demoData.classes.map(c => ({ ...c, termId }));
     console.log("✅ GET /api/teacher/classes - Retornando", classes.length, "turmas para termId:", termId);
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json(classes);
   } catch (error) {
     console.error("❌ Erro ao retornar turmas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(500).json({ error: "Erro ao carregar turmas", details: String(error) });
   }
@@ -218,6 +223,11 @@ app.get("/api/teacher/classes", (req, res) => {
 
 app.get("/api/teacher/subjects", (req, res) => {
   try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     const classId = String(req.query.classId || "");
     const list = (demoData.subjectsByClass as any)[classId] || [];
     console.log("✅ GET /api/teacher/subjects - Retornando", list.length, "disciplinas para classId:", classId);

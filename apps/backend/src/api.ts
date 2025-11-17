@@ -14,9 +14,31 @@ import bcrypt from "bcryptjs";
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: true, credentials: true }));
-app.use(helmet());
+
+// Limite de tamanho do body
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// CORS configurado
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || true, 
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// Segurança com Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
 app.use(authMiddleware);
 
 app.get("/api/health", (req, res) => {
@@ -29,20 +51,46 @@ app.get("/api/auth/user", (req: any, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  const { email, password } = req.body || {};
-  if (process.env.AUTH_DEMO === "true") {
-    const role = email?.includes("tesouraria") ? "Treasury" : email?.includes("prof") ? "Teacher" : email?.includes("secretario") ? "Secretary" : email?.includes("educacao") ? "EducationSecretary" : "Admin";
-    const token = signToken({ sub: email || "demo-admin", email: email || "admin@example.com", role });
-    return res.json({ token, role });
+  try {
+    const { email, password } = req.body || {};
+    
+    // Validação básica
+    if (!email || !password) {
+      return res.status(400).json({ error: "email_and_password_required" });
+    }
+    
+    // Sanitização básica - remover espaços e limitar tamanho
+    const cleanEmail = String(email).trim().toLowerCase().slice(0, 255);
+    const cleanPassword = String(password).slice(0, 100);
+    
+    if (process.env.AUTH_DEMO === "true") {
+      const role = cleanEmail.includes("tesouraria") ? "Treasury" : 
+                   cleanEmail.includes("prof") ? "Teacher" : 
+                   cleanEmail.includes("secretario") ? "Secretary" : 
+                   cleanEmail.includes("educacao") ? "EducationSecretary" : "Admin";
+      const token = signToken({ sub: cleanEmail || "demo-admin", email: cleanEmail || "admin@example.com", role });
+      return res.json({ token, role });
+    }
+    
+    if (!db) return res.status(503).json({ error: "db_unavailable" });
+    
+    const found = await db.select().from(usersTable).where(eq(usersTable.email, cleanEmail)).limit(1);
+    const u: any = found[0];
+    
+    if (!u || u.active === false) {
+      // Sempre retornar mesmo erro para evitar enumeração de usuários
+      return res.status(401).json({ error: "invalid_credentials" });
+    }
+    
+    const ok = await bcrypt.compare(cleanPassword, String(u.passwordHash));
+    if (!ok) return res.status(401).json({ error: "invalid_credentials" });
+    
+    const token = signToken({ sub: u.id, email: u.email, role: u.role, schoolId: u.schoolId });
+    res.json({ token, role: u.role });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "internal_server_error" });
   }
-  if (!db) return res.status(503).json({ error: "db_unavailable" });
-  const found = await db.select().from(usersTable).where(eq(usersTable.email, String(email))).limit(1);
-  const u: any = found[0];
-  if (!u || u.active === false) return res.status(401).json({ error: "invalid_credentials" });
-  const ok = await bcrypt.compare(String(password), String(u.passwordHash));
-  if (!ok) return res.status(401).json({ error: "invalid_credentials" });
-  const token = signToken({ sub: u.id, email: u.email, role: u.role, schoolId: u.schoolId });
-  res.json({ token, role: u.role });
 });
 
 app.get("/api/statistics/overview", (req, res) => {
@@ -114,9 +162,27 @@ app.get("/api/teacher/lessons", (req, res) => {
 });
 
 app.post("/api/teacher/lessons", (req, res) => {
-  const { classId, subjectId, title, content, lessonDate } = req.body;
+  const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
+  
+  // Validação básica
+  if (!classId || !subjectId || !title || !lessonDate) {
+    return res.status(400).json({ error: "Campos obrigatórios: classId, subjectId, title, lessonDate" });
+  }
+  
   const id = `lesson-${Date.now()}`;
-  const item = { id, classId, subjectId, title, content, lessonDate };
+  const item = { 
+    id, 
+    classId: String(classId), 
+    subjectId: String(subjectId), 
+    title: String(title), 
+    content: String(content || ""), 
+    lessonDate: String(lessonDate),
+    startTime: startTime ? String(startTime) : undefined,
+    endTime: endTime ? String(endTime) : undefined,
+    objectives: objectives ? String(objectives) : undefined,
+    methodology: methodology ? String(methodology) : undefined,
+    resources: resources ? String(resources) : undefined,
+  };
   lessons.push(item);
   res.status(201).json(item);
 });
@@ -127,13 +193,34 @@ app.get("/api/teacher/attendance", (req, res) => {
 });
 
 app.post("/api/teacher/attendance", (req, res) => {
-  const { studentId, status, date, classId, subjectId } = req.body;
-  const key = String(date);
-  attendance[key] = attendance[key] || [];
-  const idx = attendance[key].findIndex(m => m.studentId === studentId && m.classId === classId && m.subjectId === subjectId);
-  const item = { studentId, status, date, classId, subjectId } as const;
-  if (idx >= 0) attendance[key][idx] = item as any; else attendance[key].push(item as any);
-  res.status(201).json(item);
+  try {
+    const { studentId, status, date, classId, subjectId } = req.body;
+    
+    // Validação
+    if (!studentId || !status || !date || !classId || !subjectId) {
+      return res.status(400).json({ error: "Campos obrigatórios: studentId, status, date, classId, subjectId" });
+    }
+    
+    // Validar status
+    if (!["P", "F", "J"].includes(String(status))) {
+      return res.status(400).json({ error: "status_invalid" });
+    }
+    
+    // Sanitização
+    const key = String(date).trim().slice(0, 10);
+    const cleanStudentId = String(studentId).trim();
+    const cleanClassId = String(classId).trim();
+    const cleanSubjectId = String(subjectId).trim();
+    
+    attendance[key] = attendance[key] || [];
+    const idx = attendance[key].findIndex(m => m.studentId === cleanStudentId && m.classId === cleanClassId && m.subjectId === cleanSubjectId);
+    const item = { studentId: cleanStudentId, status: status as "P" | "F" | "J", date: key, classId: cleanClassId, subjectId: cleanSubjectId } as const;
+    if (idx >= 0) attendance[key][idx] = item as any; else attendance[key].push(item as any);
+    res.status(201).json(item);
+  } catch (error) {
+    console.error("Attendance error:", error);
+    res.status(500).json({ error: "internal_server_error" });
+  }
 });
 
 app.get("/api/teacher/grades/grid", (req, res) => {
@@ -149,12 +236,34 @@ app.get("/api/teacher/grades/grid", (req, res) => {
 });
 
 app.put("/api/teacher/grades", (req, res) => {
-  const { classId, studentId, n1, n2, n3, n4 } = req.body;
-  const key = `${classId}:${studentId}`;
-  grades[key] = { n1: Number(n1||0), n2: Number(n2||0), n3: Number(n3||0), n4: Number(n4||0) };
-  const g = grades[key];
-  const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
-  res.json({ ok: true, average });
+  try {
+    const { classId, studentId, n1, n2, n3, n4 } = req.body;
+    
+    // Validação
+    if (!classId || !studentId) {
+      return res.status(400).json({ error: "Campos obrigatórios: classId, studentId" });
+    }
+    
+    // Validar e sanitizar notas (0 a 10)
+    const validateGrade = (val: any) => {
+      const num = Number(val || 0);
+      return Math.max(0, Math.min(10, isNaN(num) ? 0 : num));
+    };
+    
+    const key = `${String(classId).trim()}:${String(studentId).trim()}`;
+    grades[key] = { 
+      n1: validateGrade(n1), 
+      n2: validateGrade(n2), 
+      n3: validateGrade(n3), 
+      n4: validateGrade(n4) 
+    };
+    const g = grades[key];
+    const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
+    res.json({ ok: true, average });
+  } catch (error) {
+    console.error("Grades error:", error);
+    res.status(500).json({ error: "internal_server_error" });
+  }
 });
 
 const tests: { id: string; title: string; subjectId: string; classId: string; content: string; createdAt: string; savedAt?: string }[] = [];

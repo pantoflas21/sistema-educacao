@@ -29,7 +29,6 @@ export default function TeacherTools() {
   const [tab, setTab] = useState<"aulas" | "chamada" | "notas" | "provas" | "educacao-especial">("aulas");
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const qc = useQueryClient();
 
   const studentsQ = useQuery<Student[]>({ 
@@ -58,27 +57,32 @@ export default function TeacherTools() {
 
   const createLesson = useMutation({ 
     mutationFn: async (payload: Partial<Lesson>) => { 
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value !== undefined) formData.append(key, String(value));
-      });
-      selectedFiles.forEach((file, index) => {
-        formData.append(`file_${index}`, file);
-      });
-      formData.append("classId", classId);
-      formData.append("subjectId", subjectId);
-      
+      // Enviar como JSON ao invés de FormData (backend não suporta multipart ainda)
       const r = await fetch("/api/teacher/lessons", { 
-        method: "POST", 
-        body: formData 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          classId,
+          subjectId,
+          startTime: payload.startTime || undefined,
+          endTime: payload.endTime || undefined,
+          objectives: payload.objectives || undefined,
+          methodology: payload.methodology || undefined,
+          resources: payload.resources || undefined,
+        })
       }); 
+      if (!r.ok) throw new Error("Erro ao criar aula");
       return r.json(); 
     }, 
     onSuccess: () => { 
       qc.invalidateQueries({ queryKey: ["teacher", "lessons", classId, subjectId] }); 
       setShowLessonForm(false);
-      setSelectedFiles([]);
-    } 
+    },
+    onError: (error) => {
+      console.error("Erro ao criar aula:", error);
+      alert("Erro ao criar aula. Tente novamente.");
+    }
   });
   
   const markAttendance = useMutation({ 
@@ -257,32 +261,13 @@ export default function TeacherTools() {
                       <textarea name="resources" className="input-modern w-full h-20" placeholder="Liste os recursos utilizados (quadro, projetor, materiais, etc.)" />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">Upload de Arquivos (PDF, PPT, etc. - Máx. 10MB cada)</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,.ppt,.pptx,.doc,.docx"
-                        onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
-                        className="input-modern w-full"
-                      />
-                      {selectedFiles.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {selectedFiles.map((file, i) => (
-                            <div key={i} className="text-xs text-slate-600 flex items-center justify-between p-2 bg-slate-50 rounded">
-                              <span>{file.name}</span>
-                              <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Upload de arquivos será implementado em versão futura */}
 
                     <div className="flex gap-3">
                       <button type="submit" className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600">
                         💾 Salvar Aula
                       </button>
-                      <button type="button" onClick={() => { setShowLessonForm(false); setSelectedFiles([]); }} className="btn-modern bg-slate-200 text-slate-700 hover:bg-slate-300">
+                      <button type="button" onClick={() => setShowLessonForm(false)} className="btn-modern bg-slate-200 text-slate-700 hover:bg-slate-300">
                         Cancelar
                       </button>
                     </div>

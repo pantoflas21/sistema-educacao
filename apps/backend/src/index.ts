@@ -13,9 +13,31 @@ import bcrypt from "bcryptjs";
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: true, credentials: true }));
-app.use(helmet());
+
+// Limite de tamanho do body
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// CORS configurado
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || true, 
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// Segurança com Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
 app.use(authMiddleware);
 
 const port = Number(process.env.PORT || 3000);
@@ -116,9 +138,27 @@ app.get("/api/teacher/lessons", (req, res) => {
 });
 
 app.post("/api/teacher/lessons", (req, res) => {
-  const { classId, subjectId, title, content, lessonDate } = req.body;
+  const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
+  
+  // Validação básica
+  if (!classId || !subjectId || !title || !lessonDate) {
+    return res.status(400).json({ error: "Campos obrigatórios: classId, subjectId, title, lessonDate" });
+  }
+  
   const id = `lesson-${Date.now()}`;
-  const item = { id, classId, subjectId, title, content, lessonDate };
+  const item = { 
+    id, 
+    classId: String(classId), 
+    subjectId: String(subjectId), 
+    title: String(title), 
+    content: String(content || ""), 
+    lessonDate: String(lessonDate),
+    startTime: startTime ? String(startTime) : undefined,
+    endTime: endTime ? String(endTime) : undefined,
+    objectives: objectives ? String(objectives) : undefined,
+    methodology: methodology ? String(methodology) : undefined,
+    resources: resources ? String(resources) : undefined,
+  };
   lessons.push(item);
   res.status(201).json(item);
 });

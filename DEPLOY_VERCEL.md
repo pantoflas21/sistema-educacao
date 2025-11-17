@@ -58,3 +58,4 @@ npm run build
 - ⚠️ Para produção, considere usar um banco de dados real (PostgreSQL)
 - ⚠️ Configure variáveis de ambiente na Vercel (DATABASE_URL, JWT_SECRET, etc.)
 
+

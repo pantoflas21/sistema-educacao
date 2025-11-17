@@ -86,3 +86,4 @@ Se quiser adicionar depois:
 
 **Resumo: VARIÁVEIS DE AMBIENTE SÃO OPCIONAIS! O deploy funciona sem elas!** 🎉
 
+

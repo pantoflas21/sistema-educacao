@@ -107,3 +107,4 @@ Se quiser confirmar visualmente:
 
 **TUDO ESTÁ PRONTO! PODE FECHAR O POWERSHELL E PARTIR PARA O DEPLOY! 🚀**
 
+

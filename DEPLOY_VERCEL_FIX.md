@@ -87,3 +87,4 @@ Após o deploy, teste:
 - Configure domínio customizado na Vercel
 - Ative HTTPS (já vem habilitado por padrão na Vercel)
 
+

@@ -55,6 +55,18 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
 
+// Endpoint de teste para verificar configuração
+app.get("/api/test", (req, res) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.json({ 
+    ok: true, 
+    authDemo: process.env.AUTH_DEMO,
+    message: "API funcionando corretamente",
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get("/api/auth/user", (req: any, res) => {
   const u = req.user || { sub: "guest", role: "Guest" };
   res.json({ id: u.sub || "guest", email: u.email || null, firstName: u.firstName || null, lastName: u.lastName || null, role: u.role || "Guest", schoolId: u.schoolId || null, profileImageUrl: null });
@@ -166,6 +178,10 @@ app.get("/api/teacher/terms", (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    // Log para debug
+    console.log("🔍 GET /api/teacher/terms - AUTH_DEMO:", process.env.AUTH_DEMO);
+    console.log("🔍 GET /api/teacher/terms - req.user:", (req as any).user);
     
     const terms = demoData.terms;
     console.log("✅ GET /api/teacher/terms - Retornando", terms.length, "bimestres");

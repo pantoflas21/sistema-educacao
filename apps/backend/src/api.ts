@@ -47,6 +47,8 @@ app.options("*", (req, res) => {
   res.status(200).end();
 });
 
+// Auth middleware - permite acesso em modo demo
+// Se AUTH_DEMO=true, permite acesso sem token
 app.use(authMiddleware);
 
 app.get("/api/health", (req, res) => {
@@ -159,20 +161,22 @@ const grades: Record<string, { n1: number; n2: number; n3: number; n4: number }>
 
 app.get("/api/teacher/terms", (req, res) => {
   try {
-    const terms = demoData.terms;
-    console.log("✅ GET /api/teacher/terms - Retornando", terms.length, "bimestres");
-    console.log("📋 Dados:", JSON.stringify(terms, null, 2));
-    
-    // Headers CORS
-    res.setHeader("Content-Type", "application/json");
+    // GARANTIR que sempre retorna JSON, nunca HTML
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    // Retornar dados
+    const terms = demoData.terms;
+    console.log("✅ GET /api/teacher/terms - Retornando", terms.length, "bimestres");
+    console.log("📋 Dados:", JSON.stringify(terms, null, 2));
+    
+    // Retornar dados como JSON
     res.status(200).json(terms);
   } catch (error) {
     console.error("❌ Erro ao retornar bimestres:", error);
+    // GARANTIR que erro também retorna JSON
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(500).json({ 
       error: "Erro ao carregar bimestres", 
@@ -896,6 +900,30 @@ app.post("/api/secretary/calendar/holidays", (req, res) => res.status(201).json(
 app.get("/api/secretary/calendar/schedules", (req, res) => res.json([]));
 app.get("/api/secretary/teachers", (req, res) => res.json([]));
 app.patch("/api/secretary/classes/:id/subjects", (req, res) => res.json({ ok: true }));
+
+// Handler de erro global - garante que sempre retorna JSON
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error("❌ Erro não tratado:", err);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.status(500).json({ 
+    error: "Erro interno do servidor", 
+    details: String(err),
+    message: "Ocorreu um erro inesperado"
+  });
+});
+
+// Handler para rotas não encontradas - sempre retorna JSON
+app.use((req: any, res: any) => {
+  console.error("❌ Rota não encontrada:", req.method, req.path);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.status(404).json({ 
+    error: "Rota não encontrada", 
+    path: req.path,
+    method: req.method
+  });
+});
 
 export default app;
 

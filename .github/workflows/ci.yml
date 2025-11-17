@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        working-directory: apps/backend
+        run: npm ci
+      - name: Install frontend deps
+        working-directory: apps/frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: apps/frontend
+        run: npm run build
+      - name: Build backend
+        working-directory: apps/backend
+        run: npm run build
+      - name: Generate migrations
+        working-directory: apps/backend
+        run: npm run drizzle:generate
+      - name: Migrate (if DATABASE_URL provided)
+        if: env.DATABASE_URL != ''
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run drizzle:migrate

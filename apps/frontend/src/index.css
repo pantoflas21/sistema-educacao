@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { 
+    height: 100%; 
+    overflow-x: hidden; /* Previne scroll horizontal */
+  }
+  
+  body {
+    @apply antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  /* Melhorias de responsividade */
+  @media (max-width: 640px) {
+    body {
+      font-size: 14px;
+    }
+    
+    /* Ajustes para mobile */
+    .card-modern {
+      @apply rounded-lg;
+    }
+    
+    .card-gradient {
+      @apply rounded-xl p-4;
+    }
+  }
+
+  /* Previne overflow horizontal */
+  @media (max-width: 768px) {
+    * {
+      max-width: 100%;
+    }
+    
+    table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+  }
+}
+
+@layer components {
+  /* Card moderno com hover effect */
+  .card-modern {
+    @apply rounded-xl bg-white shadow-sm border border-slate-200/60;
+    @apply transition-all duration-300 ease-out;
+    @apply hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5;
+    @apply hover:border-slate-300/80;
+  }
+  
+  /* Card com gradiente */
+  .card-gradient {
+    @apply rounded-2xl bg-gradient-to-br text-white shadow-xl;
+    @apply transition-all duration-300 ease-out;
+    @apply hover:shadow-2xl hover:scale-[1.01];
+  }
+  
+  /* Botão moderno */
+  .btn-modern {
+    @apply px-4 py-2 rounded-lg font-medium;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:scale-105 active:scale-95;
+    @apply shadow-sm hover:shadow-md;
+  }
+  
+  /* Input moderno */
+  .input-modern {
+    @apply px-4 py-2 rounded-xl bg-white border border-slate-200;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500;
+    @apply hover:border-slate-300;
+  }
+  
+  /* Badge moderno */
+  .badge-modern {
+    @apply px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply transition-all duration-200;
+  }
+  
+  /* Animação de fade in */
+  .fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Animação de slide in */
+  .slide-in {
+    animation: slideIn 0.4s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  /* Pulse suave para indicadores */
+  .pulse-soft {
+    animation: pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulseSoft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+  
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  /* Gradiente animado */
+  .gradient-animated {
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+  }
+  
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+@layer utilities {
+  /* Scrollbar customizada */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-slate-100 rounded-full;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+    @apply hover:bg-slate-400;
+  }
+  
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r;
+  }
+}

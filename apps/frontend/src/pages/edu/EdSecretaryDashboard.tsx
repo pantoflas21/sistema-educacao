@@ -215,7 +215,7 @@ export default function EdSecretaryDashboard() {
               <div className="text-3xl font-extrabold text-rose-600">
                 {Math.round((data?.evasaoPercent || 0) * 100)}%
               </div>
-              <div className="text-xs text-rose-600 mt-1 font-medium">Meta: < 5%</div>
+              <div className="text-xs text-rose-600 mt-1 font-medium">Meta: &lt; 5%</div>
               <div className="h-2 bg-slate-200 rounded-full mt-3 overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full"

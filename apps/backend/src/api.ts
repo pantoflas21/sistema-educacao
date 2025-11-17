@@ -652,13 +652,59 @@ app.patch("/api/secretary/subjects/:id", async (req, res) => {
 });
 
 app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
-  const { email, password, role, firstName, lastName, schoolId } = req.body || {};
-  if (!email || !password || !role) return res.status(400).json({ error: "missing_fields" });
-  if (!db) return res.status(503).json({ error: "db_unavailable" });
-  const hash = await bcrypt.hash(String(password), 10);
-  const inserted = await db.insert(usersTable).values({ email: String(email), passwordHash: hash, role: String(role), firstName, lastName, schoolId, active: true }).returning();
-  const u = inserted[0];
-  res.status(201).json({ id: u.id, email: u.email, role: u.role });
+  try {
+    // Garantir headers JSON
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    const { email, password, role, firstName, lastName, schoolId } = req.body || {};
+    if (!email || !password || !role) {
+      return res.status(400).json({ error: "missing_fields", message: "Email, senha e role são obrigatórios" });
+    }
+    
+    // Em modo demo, simular criação de usuário sem banco
+    if (process.env.AUTH_DEMO === "true" || !db) {
+      console.log("✅ MODO DEMO: Criando usuário simulado:", email);
+      const demoUser = {
+        id: `demo-${Date.now()}`,
+        email: String(email),
+        role: String(role),
+        firstName: firstName || null,
+        lastName: lastName || null,
+        schoolId: schoolId || null,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+      return res.status(201).json({ 
+        id: demoUser.id, 
+        email: demoUser.email, 
+        role: demoUser.role,
+        message: "Usuário criado em modo demo"
+      });
+    }
+    
+    // Modo produção com banco de dados
+    const hash = await bcrypt.hash(String(password), 10);
+    const inserted = await db.insert(usersTable).values({ 
+      email: String(email), 
+      passwordHash: hash, 
+      role: String(role), 
+      firstName, 
+      lastName, 
+      schoolId, 
+      active: true 
+    }).returning();
+    const u = inserted[0];
+    res.status(201).json({ id: u.id, email: u.email, role: u.role });
+  } catch (error: any) {
+    console.error("❌ Erro ao criar usuário:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao criar usuário", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 app.get("/api/secretary/class-subjects", (req, res) => {

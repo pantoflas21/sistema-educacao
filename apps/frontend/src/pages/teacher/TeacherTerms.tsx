@@ -53,12 +53,27 @@ export default function TeacherTerms() {
           method: "GET"
         }); 
         
-        console.log("📡 Resposta recebida:", r.status, r.statusText);
+        console.log("📡 Resposta recebida:", r.status, r.statusText, r.headers.get("content-type"));
+        
+        // Verificar se a resposta é HTML (erro do Vercel)
+        const contentType = r.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await r.text();
+          console.error("❌ Resposta não é JSON, é:", contentType);
+          console.error("❌ Conteúdo recebido:", text.substring(0, 200));
+          throw new Error("Servidor retornou HTML em vez de JSON. Verifique a configuração do Vercel.");
+        }
         
         if (!r.ok) {
           const errorText = await r.text();
-          console.error("❌ Erro ao carregar bimestres:", r.status, r.statusText, errorText);
-          throw new Error(`Erro ${r.status}: ${errorText || r.statusText || "Erro ao carregar bimestres"}`);
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `Erro ${r.status}` };
+          }
+          console.error("❌ Erro ao carregar bimestres:", r.status, r.statusText, errorData);
+          throw new Error(errorData.message || errorData.error || `Erro ${r.status}: ${r.statusText}`);
         }
         
         const json = await r.json();

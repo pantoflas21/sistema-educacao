@@ -93,17 +93,43 @@ export default function AdminDashboard() {
 
   const createUser = useMutation({
     mutationFn: async (payload: Partial<User> & { password?: string }) => {
-      const r = await fetch("/api/admin/users", {
-        method: editingUser ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingUser ? { ...payload, id: editingUser.id } : payload)
-      });
-      return r.json();
+      try {
+        const r = await fetch("/api/admin/users", {
+          method: editingUser ? "PUT" : "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(editingUser ? { ...payload, id: editingUser.id } : payload)
+        });
+        
+        if (!r.ok) {
+          const errorText = await r.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `Erro ${r.status}` };
+          }
+          throw new Error(errorData.message || errorData.error || `Erro ${r.status}: ${r.statusText}`);
+        }
+        
+        return await r.json();
+      } catch (error: any) {
+        console.error("❌ Erro ao criar usuário:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("✅ Usuário criado com sucesso:", data);
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
       setShowUserModal(false);
       setEditingUser(null);
+      alert("Usuário criado com sucesso!");
+    },
+    onError: (error: any) => {
+      console.error("❌ Erro ao criar usuário:", error);
+      alert(`Erro ao criar usuário: ${error.message || "Erro desconhecido"}`);
     }
   });
 

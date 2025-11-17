@@ -44,53 +44,114 @@ export default function TeacherTools() {
   
   const lessonsQ = useQuery<Lesson[]>({ 
     queryKey: ["teacher", "lessons", classId, subjectId], 
-    queryFn: async ({ signal }) => { 
-      const r = await fetch(`/api/teacher/lessons?classId=${classId}&subjectId=${subjectId}`, { signal }); 
-      if (!r.ok) throw new Error("Erro ao carregar aulas");
-      return r.json(); 
+    queryFn: async ({ signal }) => {
+      try {
+        const r = await fetch(`/api/teacher/lessons?classId=${classId}&subjectId=${subjectId}`, { 
+          signal,
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        }); 
+        
+        const contentType = r.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.warn("⚠️ Resposta não é JSON, retornando array vazio");
+          return [];
+        }
+        
+        if (!r.ok) {
+          const errorText = await r.text();
+          console.error("❌ Erro ao carregar aulas:", r.status, errorText);
+          return []; // Retornar array vazio em vez de lançar erro
+        }
+        
+        const json = await r.json();
+        return Array.isArray(json) ? json : [];
+      } catch (err) {
+        console.warn("⚠️ Erro ao buscar aulas, retornando array vazio:", err);
+        return []; // Sempre retornar array, nunca lançar erro
+      }
     },
-    retry: 2,
-    enabled: !!classId && !!subjectId
+    retry: 1,
+    staleTime: 60000,
+    enabled: !!classId && !!subjectId,
+    refetchOnWindowFocus: false
   });
   
   const gradesQ = useQuery<GradeRow[]>({ 
     queryKey: ["teacher", "grades", classId, subjectId], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch(`/api/teacher/grades/grid?classId=${classId}&subjectId=${subjectId}`, { signal }); 
-      if (!r.ok) throw new Error("Erro ao carregar notas");
-      return r.json(); 
+      try {
+        const r = await fetch(`/api/teacher/grades/grid?classId=${classId}&subjectId=${subjectId}`, { 
+          signal,
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        }); 
+        if (!r.ok) {
+          console.warn("⚠️ Erro ao carregar notas, retornando array vazio");
+          return [];
+        }
+        const json = await r.json();
+        return Array.isArray(json) ? json : [];
+      } catch {
+        return [];
+      }
     },
-    retry: 2,
-    enabled: !!classId && !!subjectId
+    retry: 1,
+    staleTime: 60000,
+    enabled: !!classId && !!subjectId,
+    refetchOnWindowFocus: false
   });
 
   const createLesson = useMutation({ 
-    mutationFn: async (payload: Partial<Lesson>) => { 
-      // Enviar como JSON ao invés de FormData (backend não suporta multipart ainda)
-      const r = await fetch("/api/teacher/lessons", { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          classId,
-          subjectId,
-          startTime: payload.startTime || undefined,
-          endTime: payload.endTime || undefined,
-          objectives: payload.objectives || undefined,
-          methodology: payload.methodology || undefined,
-          resources: payload.resources || undefined,
-        })
-      }); 
-      if (!r.ok) throw new Error("Erro ao criar aula");
-      return r.json(); 
+    mutationFn: async (payload: Partial<Lesson>) => {
+      try {
+        const r = await fetch("/api/teacher/lessons", { 
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            ...payload,
+            classId,
+            subjectId,
+            startTime: payload.startTime || undefined,
+            endTime: payload.endTime || undefined,
+            objectives: payload.objectives || undefined,
+            methodology: payload.methodology || undefined,
+            resources: payload.resources || undefined,
+          })
+        });
+        
+        if (!r.ok) {
+          const errorText = await r.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `Erro ${r.status}` };
+          }
+          throw new Error(errorData.message || errorData.error || `Erro ${r.status}: ${r.statusText}`);
+        }
+        
+        return await r.json();
+      } catch (error: any) {
+        console.error("❌ Erro ao criar aula:", error);
+        throw error;
+      }
     }, 
     onSuccess: () => { 
       qc.invalidateQueries({ queryKey: ["teacher", "lessons", classId, subjectId] }); 
       setShowLessonForm(false);
+      alert("Aula criada com sucesso!");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao criar aula:", error);
-      alert("Erro ao criar aula. Tente novamente.");
+      alert(`Erro ao criar aula: ${error.message || "Erro desconhecido"}`);
     }
   });
   

@@ -39,10 +39,11 @@ app.use(helmet({
   },
 }));
 
-// OPTIONS handler para CORS
+// OPTIONS handler para CORS - DEVE estar ANTES de outras rotas
 app.options("*", (req, res) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.status(200).end();
 });
@@ -271,12 +272,21 @@ app.get("/api/teacher/lessons", (req, res) => {
 
 app.post("/api/teacher/lessons", (req, res) => {
   try {
-    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
+    // Garantir headers JSON e CORS
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body || {};
     
     // Validação básica
     if (!classId || !subjectId || !title || !lessonDate) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      return res.status(400).json({ error: "Campos obrigatórios: classId, subjectId, title, lessonDate" });
+      return res.status(400).json({ 
+        error: "Campos obrigatórios faltando", 
+        message: "classId, subjectId, title e lessonDate são obrigatórios",
+        received: { classId: !!classId, subjectId: !!subjectId, title: !!title, lessonDate: !!lessonDate }
+      });
     }
     
     const id = `lesson-${Date.now()}`;
@@ -295,12 +305,15 @@ app.post("/api/teacher/lessons", (req, res) => {
     };
     lessons.push(item);
     console.log("✅ POST /api/teacher/lessons - Aula criada:", item.id);
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(201).json(item);
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Erro ao criar aula:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(500).json({ error: "Erro ao criar aula", details: String(error) });
+    res.status(500).json({ 
+      error: "Erro ao criar aula", 
+      message: error?.message || "Erro interno do servidor"
+    });
   }
 });
 
@@ -663,13 +676,23 @@ app.patch("/api/secretary/subjects/:id", async (req, res) => {
 
 app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
   try {
-    // Garantir headers JSON
+    // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    console.log("🔍 POST /api/admin/users - AUTH_DEMO:", process.env.AUTH_DEMO);
+    console.log("🔍 POST /api/admin/users - req.user:", (req as any).user);
+    console.log("🔍 POST /api/admin/users - Body:", JSON.stringify(req.body, null, 2));
     
     const { email, password, role, firstName, lastName, schoolId } = req.body || {};
     if (!email || !password || !role) {
-      return res.status(400).json({ error: "missing_fields", message: "Email, senha e role são obrigatórios" });
+      return res.status(400).json({ 
+        error: "missing_fields", 
+        message: "Email, senha e role são obrigatórios",
+        received: { email: !!email, password: !!password, role: !!role }
+      });
     }
     
     // Em modo demo, simular criação de usuário sem banco
@@ -689,6 +712,8 @@ app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
         id: demoUser.id, 
         email: demoUser.email, 
         role: demoUser.role,
+        firstName: demoUser.firstName,
+        lastName: demoUser.lastName,
         message: "Usuário criado em modo demo"
       });
     }

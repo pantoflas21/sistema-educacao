@@ -876,6 +876,70 @@ app.get("/api/treasury/overview", (req, res) => {
   res.json({ totalInvoices, overdue, paid, receita });
 });
 
+// Envio de cobranças por WhatsApp
+app.post("/api/treasury/invoices/:id/send-whatsapp", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const id = String(req.params.id);
+    const { phoneNumber, message } = req.body || {};
+    const invoice = invoices.find(i => i.id === id);
+    if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
+    
+    // Simular envio por WhatsApp (em produção, integrar com API do WhatsApp Business)
+    const whatsappMessage = message || `Olá! Você tem uma fatura pendente no valor de R$ ${invoice.total.toFixed(2)}. Vencimento: ${invoice.dueDate}. Para pagar, acesse: [link]`;
+    
+    console.log("📱 Enviando cobrança por WhatsApp:", {
+      invoiceId: id,
+      phone: phoneNumber,
+      message: whatsappMessage
+    });
+    
+    // Em produção, aqui seria a integração real com WhatsApp Business API
+    res.json({ 
+      success: true, 
+      message: "Cobrança enviada por WhatsApp com sucesso",
+      sentTo: phoneNumber,
+      invoiceId: id
+    });
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao enviar WhatsApp", message: error?.message });
+  }
+});
+
+app.post("/api/treasury/invoices/bulk-send-whatsapp", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const { invoiceIds, customMessage } = req.body || {};
+    if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+      return res.status(400).json({ error: "Lista de faturas é obrigatória" });
+    }
+    
+    const sent: string[] = [];
+    invoiceIds.forEach((id: string) => {
+      const invoice = invoices.find(i => i.id === id);
+      if (invoice) {
+        console.log("📱 Enviando cobrança em lote:", id);
+        sent.push(id);
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `${sent.length} cobrança(s) enviada(s) por WhatsApp`,
+      sent: sent.length,
+      total: invoiceIds.length
+    });
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao enviar WhatsApp em lote", message: error?.message });
+  }
+});
+
 app.get("/api/education-secretary/dashboard", (req, res) => {
   const totalEscolas = 49;
   const totalAlunos = secStudents.length;
@@ -955,9 +1019,114 @@ app.get("/api/education-secretary/reports/ranking", (req, res) => {
 });
 
 // Stubs para rotas que não existem no backend ainda
-app.get("/api/student/chat/conversations", (req, res) => res.json([]));
-app.get("/api/student/chat/messages", (req, res) => res.json([]));
-app.post("/api/student/chat/send", (req, res) => res.status(201).json({ ok: true }));
+// Chat com suporte a arquivos (PDF, Word, etc)
+type ChatMessage = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  attachments?: Array<{ url: string; name: string; type: string; size: number }>;
+};
+
+const chatMessages: ChatMessage[] = [];
+const chatConversations: Array<{ id: string; name: string; type: string; participants: string[] }> = [];
+
+app.get("/api/student/chat/conversations", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json(chatConversations);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar conversas", message: error?.message });
+  }
+});
+
+app.get("/api/student/chat/messages", (req, res) => {
+  try {
+    const conversationId = String(req.query.conversationId || "");
+    const filtered = conversationId ? chatMessages.filter(m => m.conversationId === conversationId) : [];
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json(filtered);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar mensagens", message: error?.message });
+  }
+});
+
+app.post("/api/student/chat/send", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    // Em produção, usar multer ou similar para upload de arquivos
+    const { conversationId, senderId, senderName, content, attachments } = req.body || {};
+    
+    if (!conversationId || !senderId || !content) {
+      return res.status(400).json({ error: "Campos obrigatórios faltando" });
+    }
+    
+    const message: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      conversationId: String(conversationId),
+      senderId: String(senderId),
+      senderName: String(senderName || "Usuário"),
+      content: String(content),
+      timestamp: new Date().toISOString(),
+      attachments: attachments || []
+    };
+    
+    chatMessages.push(message);
+    console.log("💬 Mensagem enviada:", message.id, "Anexos:", attachments?.length || 0);
+    
+    res.status(201).json(message);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao enviar mensagem", message: error?.message });
+  }
+});
+
+// Upload de arquivos para chat (PDF, Word, etc)
+app.post("/api/student/chat/upload", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    // Em produção, usar multer para processar multipart/form-data
+    // Por enquanto, simular upload
+    const { fileName, fileType, fileSize } = req.body || {};
+    
+    if (!fileName) {
+      return res.status(400).json({ error: "Nome do arquivo é obrigatório" });
+    }
+    
+    // Validar tipos permitidos
+    const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg"];
+    if (fileType && !allowedTypes.includes(fileType)) {
+      return res.status(400).json({ error: "Tipo de arquivo não permitido. Use PDF, Word, PNG ou JPEG" });
+    }
+    
+    // Simular URL do arquivo (em produção, salvar no storage e retornar URL real)
+    const fileUrl = `/uploads/chat/${Date.now()}-${fileName}`;
+    
+    res.status(201).json({
+      url: fileUrl,
+      name: fileName,
+      type: fileType || "application/octet-stream",
+      size: fileSize || 0
+    });
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao fazer upload", message: error?.message });
+  }
+});
 app.get("/api/student/terms", (req, res) => res.json(demoData.terms));
 app.get("/api/student/attendance/summary", (req, res) => res.json({ totalPresences: 0, totalAbsences: 0, totalJustified: 0, frequencyPercent: 0 }));
 app.get("/api/student/justifications", (req, res) => res.json([]));
@@ -974,11 +1143,286 @@ app.post("/api/education-secretary/transfer-teacher", (req, res) => res.json({ o
 app.post("/api/education-secretary/reallocate-student", (req, res) => res.json({ ok: true }));
 app.post("/api/education-secretary/resource-requests/:id/approve", (req, res) => res.json({ ok: true }));
 app.get("/api/education-secretary/reports/mec", (req, res) => res.json({}));
-app.get("/api/admin/schools", (req, res) => res.json([]));
+
+// Sistema de Planos de Aula - SECRETÁRIO DA ESCOLA (não Secretário de Educação)
+type LessonPlan = {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  schoolId: string;
+  schoolName: string;
+  category: "educacao-infantil" | "fundamental-1" | "fundamental-2" | "ensino-medio";
+  subject: string;
+  classId: string;
+  className: string;
+  title: string;
+  content: string;
+  objectives: string;
+  methodology: string;
+  resources: string;
+  evaluation: string;
+  submittedAt: string;
+  status: "pending" | "approved" | "rejected" | "revision";
+  reviewedBy?: string;
+  reviewedAt?: string;
+  feedback?: string;
+};
+
+const lessonPlans: LessonPlan[] = [];
+
+// Endpoints para SECRETÁRIO DA ESCOLA (não Secretário de Educação)
+app.get("/api/secretary/lesson-plans", (req, res) => {
+  try {
+    const { category, status } = req.query as any;
+    let filtered = lessonPlans;
+    if (category) filtered = filtered.filter(p => p.category === category);
+    if (status) filtered = filtered.filter(p => p.status === status);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json(filtered);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar planos", message: error?.message });
+  }
+});
+
+app.post("/api/secretary/lesson-plans", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const { teacherId, teacherName, schoolId, schoolName, category, subject, classId, className, title, content, objectives, methodology, resources, evaluation } = req.body || {};
+    if (!teacherId || !category || !title) {
+      return res.status(400).json({ error: "Campos obrigatórios faltando" });
+    }
+    const plan: LessonPlan = {
+      id: `plan-${Date.now()}`,
+      teacherId: String(teacherId),
+      teacherName: String(teacherName || "Professor"),
+      schoolId: String(schoolId || ""),
+      schoolName: String(schoolName || ""),
+      category: category as LessonPlan["category"],
+      subject: String(subject || ""),
+      classId: String(classId || ""),
+      className: String(className || ""),
+      title: String(title),
+      content: String(content || ""),
+      objectives: String(objectives || ""),
+      methodology: String(methodology || ""),
+      resources: String(resources || ""),
+      evaluation: String(evaluation || ""),
+      submittedAt: new Date().toISOString(),
+      status: "pending"
+    };
+    lessonPlans.push(plan);
+    console.log("✅ Plano de aula recebido pelo Secretário da Escola:", plan.id, plan.category);
+    res.status(201).json(plan);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao criar plano", message: error?.message });
+  }
+});
+
+app.put("/api/secretary/lesson-plans/:id/review", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const id = String(req.params.id);
+    const { status, feedback, reviewedBy } = req.body || {};
+    const idx = lessonPlans.findIndex(p => p.id === id);
+    if (idx < 0) return res.status(404).json({ error: "Plano não encontrado" });
+    lessonPlans[idx].status = status || "pending";
+    lessonPlans[idx].feedback = feedback;
+    lessonPlans[idx].reviewedBy = reviewedBy;
+    lessonPlans[idx].reviewedAt = new Date().toISOString();
+    console.log("✅ Plano de aula avaliado pelo Secretário da Escola:", id, status);
+    res.json(lessonPlans[idx]);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao avaliar plano", message: error?.message });
+  }
+});
+
+app.get("/api/secretary/lesson-plans/stats", (req, res) => {
+  try {
+    const stats = {
+      total: lessonPlans.length,
+      pending: lessonPlans.filter(p => p.status === "pending").length,
+      approved: lessonPlans.filter(p => p.status === "approved").length,
+      rejected: lessonPlans.filter(p => p.status === "rejected").length,
+      byCategory: {
+        "educacao-infantil": lessonPlans.filter(p => p.category === "educacao-infantil").length,
+        "fundamental-1": lessonPlans.filter(p => p.category === "fundamental-1").length,
+        "fundamental-2": lessonPlans.filter(p => p.category === "fundamental-2").length,
+        "ensino-medio": lessonPlans.filter(p => p.category === "ensino-medio").length
+      }
+    };
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json(stats);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar estatísticas", message: error?.message });
+  }
+});
+// Admin - UMA escola apenas (não múltiplas)
+let adminSchool: { id: string; name: string; logoUrl?: string; maxStudents: number; currentStudents: number; evaluationType: "notas" | "conceitos"; active: boolean } | null = null;
+
+app.get("/api/admin/schools", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    // Retornar array com uma escola apenas (ou vazio se não configurada)
+    res.json(adminSchool ? [adminSchool] : []);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar escola", message: error?.message });
+  }
+});
+
+app.post("/api/admin/schools", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const { name, logoUrl, maxStudents, evaluationType } = req.body || {};
+    if (!name) {
+      return res.status(400).json({ error: "Nome da escola é obrigatório" });
+    }
+    
+    // Sempre substituir a escola (uma escola apenas)
+    adminSchool = {
+      id: `school-${Date.now()}`,
+      name: String(name),
+      logoUrl: logoUrl || undefined,
+      maxStudents: Number(maxStudents || 1000),
+      currentStudents: 0,
+      evaluationType: evaluationType === "conceitos" ? "conceitos" : "notas",
+      active: true
+    };
+    
+    console.log("✅ Escola configurada (Admin):", adminSchool.id);
+    res.status(201).json(adminSchool);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao criar escola", message: error?.message });
+  }
+});
+
+app.put("/api/admin/schools/:id", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    if (!adminSchool) {
+      return res.status(404).json({ error: "Escola não encontrada" });
+    }
+    
+    const { name, logoUrl, maxStudents, evaluationType, active } = req.body || {};
+    adminSchool = {
+      ...adminSchool,
+      ...(name && { name: String(name) }),
+      ...(logoUrl !== undefined && { logoUrl }),
+      ...(maxStudents !== undefined && { maxStudents: Number(maxStudents) }),
+      ...(evaluationType && { evaluationType: evaluationType === "conceitos" ? "conceitos" : "notas" }),
+      ...(active !== undefined && { active: Boolean(active) })
+    };
+    
+    res.json(adminSchool);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao atualizar escola", message: error?.message });
+  }
+});
+
 app.get("/api/admin/users/:id", (req, res) => res.status(404).json({ error: "not_found" }));
 app.delete("/api/admin/users/:id", (req, res) => res.json({ ok: true }));
 app.put("/api/admin/users/:id/status", (req, res) => res.json({ ok: true }));
 app.post("/api/admin/users/:id/reset-password", (req, res) => res.json({ ok: true }));
+
+// Configuração da tela de login (personalização)
+let loginConfig: {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  schoolName?: string;
+  welcomeMessage?: string;
+} = {};
+
+app.get("/api/admin/login-config", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json(loginConfig);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao buscar configuração", message: error?.message });
+  }
+});
+
+app.post("/api/admin/login-config", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    const { logoUrl, primaryColor, secondaryColor, schoolName, welcomeMessage } = req.body || {};
+    loginConfig = {
+      logoUrl: logoUrl || loginConfig.logoUrl,
+      primaryColor: primaryColor || loginConfig.primaryColor || "#4f46e5",
+      secondaryColor: secondaryColor || loginConfig.secondaryColor || "#6366f1",
+      schoolName: schoolName || loginConfig.schoolName || "Aletheia",
+      welcomeMessage: welcomeMessage || loginConfig.welcomeMessage || "Bem-vindo ao Sistema de Gestão Educacional"
+    };
+    console.log("✅ Configuração de login salva:", loginConfig);
+    res.json(loginConfig);
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao salvar configuração", message: error?.message });
+  }
+});
+
+// Upload de logo para login
+app.post("/api/admin/login-config/logo", (req, res) => {
+  try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    // Em produção, usar multer para processar multipart/form-data
+    // Por enquanto, simular upload e retornar URL
+    const { fileName, fileType, fileSize } = req.body || {};
+    
+    // Validar tipo de arquivo
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/gif"];
+    if (fileType && !allowedTypes.includes(fileType)) {
+      return res.status(400).json({ error: "Tipo de arquivo não permitido. Use PNG, JPG, SVG ou GIF" });
+    }
+    
+    // Validar tamanho (máx 5MB)
+    if (fileSize && fileSize > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: "Arquivo muito grande. Máximo 5MB" });
+    }
+    
+    // Simular URL do arquivo (em produção, salvar no storage e retornar URL real)
+    const fileUrl = `/uploads/login/logo-${Date.now()}.${fileType?.split('/')[1] || 'png'}`;
+    loginConfig.logoUrl = fileUrl;
+    
+    console.log("✅ Logo do login atualizado:", fileUrl);
+    
+    res.status(201).json({
+      url: fileUrl,
+      message: "Logo enviado com sucesso"
+    });
+  } catch (error: any) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ error: "Erro ao fazer upload", message: error?.message });
+  }
+});
 app.get("/api/treasury/reports/dre", (req, res) => res.json({}));
 app.get("/api/treasury/reports/balancete", (req, res) => res.json({}));
 app.get("/api/treasury/reports/cashflow", (req, res) => res.json({}));

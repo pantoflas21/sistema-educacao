@@ -286,6 +286,7 @@ export default function EdSecretaryDashboard() {
               </div>
             </Link>
 
+
             <div className="card-modern p-6 cursor-pointer group h-full" onClick={() => setShowSchoolModal(true)}>
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg mb-4 group-hover:scale-110 transition-transform">
                 ➕

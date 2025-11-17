@@ -28,12 +28,15 @@ import EdSecretaryDashboard from "./pages/edu/EdSecretaryDashboard";
 import EdSecretaryReports from "./pages/edu/EdSecretaryReports";
 import EdSecretarySchools from "./pages/edu/EdSecretarySchools";
 import EdSecretaryPlanning from "./pages/edu/EdSecretaryPlanning";
+import SecretaryLessonPlans from "./pages/secretary/SecretaryLessonPlans";
 import DesignReview from "./pages/DesignReview";
 import TestSupabase from "./pages/TestSupabase";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
   return (
     <Switch>
+      <Route path="/login" component={LoginPage} />
       <Route path="/" component={HierarchyDashboard} />
       <Route path="/review" component={DesignReview} />
       <Route path="/test-supabase" component={TestSupabase} />
@@ -65,6 +68,7 @@ export default function App() {
       <Route path="/education-secretary/reports" component={EdSecretaryReports} />
       <Route path="/education-secretary/schools" component={EdSecretarySchools} />
       <Route path="/education-secretary/planning" component={EdSecretaryPlanning} />
+      <Route path="/secretary/lesson-plans" component={SecretaryLessonPlans} />
       <Route> <AdminDashboard /> </Route>
     </Switch>
   );

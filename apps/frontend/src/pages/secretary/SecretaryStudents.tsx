@@ -240,7 +240,7 @@ export default function SecretaryStudents() {
         {/* Modal de Cadastro/Edição */}
         {showStudentModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="card-modern p-6 max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto">
+            <div className="card-modern p-4 md:p-6 max-w-4xl w-full my-4 md:my-8 max-h-[90vh] overflow-y-auto">
               <h3 className="text-2xl font-bold text-slate-800 mb-6">
                 {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
               </h3>
@@ -442,7 +442,7 @@ export default function SecretaryStudents() {
 
         {/* Modal de Transferência */}
         {showTransferModal && selectedStudentForTransfer && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
             <div className="card-modern p-6 max-w-md w-full">
               <h3 className="text-2xl font-bold text-slate-800 mb-4">Solicitar Transferência</h3>
               <form

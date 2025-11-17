@@ -159,6 +159,23 @@ export default function SecretaryDashboard() {
             </div>
           </Link>
           
+          <Link href="/secretary/lesson-plans">
+            <div className="card-modern p-6 cursor-pointer group h-full">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                  📚
+                </div>
+                <div className="flex-1">
+                  <div className="text-xl font-bold text-slate-800 mb-1">Planos de Aula</div>
+                  <div className="text-slate-600 text-sm">Receber e avaliar planos</div>
+                </div>
+              </div>
+              <button className="btn-modern bg-amber-600 text-white w-full hover:bg-amber-700">
+                Ver Planos
+              </button>
+            </div>
+          </Link>
+
           <Link href="/secretary/subjects">
             <div className="card-modern p-6 cursor-pointer group h-full">
               <div className="flex items-start gap-4 mb-4">

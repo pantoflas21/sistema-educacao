@@ -47,3 +47,36 @@ Thumbs.db
 *.tmp
 *.temp
 .cache
+
+# Arquivos e pastas do sistema Windows (IMPORTANTE!)
+AppData/
+"Application Data"/
+Contacts/
+Desktop/
+Documents/
+Downloads/
+Dropbox/
+Favorites/
+IntelGraphicsProfiles/
+Links/
+Music/
+OneDrive/
+Pictures/
+"Saved Games"/
+Searches/
+Videos/
+3D Objects/
+ntuser.dat*
+NTUSER.DAT*
+*.blf
+*.regtrans-ms
+*.ini
+*.log*
+*.xml
+Sti_Trace.log
+
+# Arquivos do Cursor/VSCode
+.cursor/
+.trae/
+.trae-aicc/
+.gitconfig

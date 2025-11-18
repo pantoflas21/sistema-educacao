@@ -26,17 +26,38 @@ export default function LoginPage() {
     queryFn: async () => {
       try {
         const saved = localStorage.getItem("school-login-config");
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+          try {
+            return JSON.parse(saved);
+          } catch {
+            return {};
+          }
+        }
         
         // Tentar carregar do backend
-        const r = await fetch("/api/admin/login-config");
-        if (r.ok) return await r.json();
+        try {
+          const r = await fetch("/api/admin/login-config");
+          if (r.ok) {
+            const contentType = r.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const text = await r.text();
+              if (text) {
+                return JSON.parse(text);
+              }
+            }
+          }
+        } catch {
+          // Ignorar erros ao carregar do backend
+        }
+        
         return {};
       } catch {
         return {};
       }
     },
-    staleTime: Infinity
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false
   });
 
   // Upload de logo
@@ -105,10 +126,28 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      // Verificar se a resposta é JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        throw new Error(`Erro na API: ${text || response.statusText}`);
+      }
+
+      const text = await response.text();
+      if (!text) {
+        throw new Error("Resposta vazia do servidor");
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error("Erro ao parsear JSON:", text);
+        throw new Error("Resposta inválida do servidor");
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao fazer login");
+        throw new Error(data.error || data.message || "Erro ao fazer login");
       }
 
       // Salvar token
@@ -130,6 +169,7 @@ export default function LoginPage() {
       const redirectTo = roleRoutes[role] || "/admin";
       setLocation(redirectTo);
     } catch (err: any) {
+      console.error("Erro no login:", err);
       setError(err.message || "Erro ao fazer login. Verifique suas credenciais.");
     } finally {
       setIsLoading(false);

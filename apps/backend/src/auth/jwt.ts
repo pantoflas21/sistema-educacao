@@ -1,11 +1,11 @@
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 
 export function signToken(payload: any) {
-  const options: SignOptions = {
-    expiresIn: env.JWT_EXPIRES_IN
-  };
-  return jwt.sign(payload, env.JWT_SECRET, options);
+  // Garantir que expiresIn seja string (formato aceito pelo jwt.sign)
+  // TypeScript precisa de type assertion para StringValue do jsonwebtoken
+  const expiresIn: string = String(env.JWT_EXPIRES_IN);
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn } as any);
 }
 
 export function verifyToken(token: string) {

@@ -1,17 +1,23 @@
 import { verifyToken } from "../auth/jwt";
+import { env } from "../config/env";
 
 export function authMiddleware(req: any, _res: any, next: any) {
   const hdr = req.headers["authorization"] || "";
   const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
-  const demo = process.env.AUTH_DEMO === "true";
-  if (demo && !token) {
+  
+  if (env.AUTH_DEMO && !token) {
     req.user = { sub: "demo-admin", role: "Admin", email: "admin@example.com" };
     return next();
   }
+  
   if (token) {
     const payload = verifyToken(token);
-    if (payload) { req.user = payload; return next(); }
+    if (payload) { 
+      req.user = payload; 
+      return next(); 
+    }
   }
+  
   req.user = null;
   next();
 }
@@ -25,10 +31,9 @@ export function requireRole(role: string) {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     const u = req.user;
-    const demo = process.env.AUTH_DEMO === "true";
     
     // Em modo demo, sempre permitir se não houver usuário
-    if (demo && !u) {
+    if (env.AUTH_DEMO && !u) {
       req.user = { sub: "demo-admin", role: "Admin", email: "admin@example.com" };
       return next();
     }

@@ -10,6 +10,9 @@ import { db } from "./db";
 import { classes as classesTable, subjects as subjectsTable, users as usersTable, schools as schoolsTable } from "./db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { env } from "./config/env";
+import { generalRateLimit, authRateLimit } from "./middleware/rateLimit";
+import { sanitizeEmail, sanitizePassword, validate, schemas } from "./utils/validation";
 
 dotenv.config();
 
@@ -19,13 +22,35 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// CORS configurado
+// CORS configurado com origens permitidas
 app.use(cors({ 
-  origin: process.env.CORS_ORIGIN || true, 
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (mobile apps, Postman, etc) apenas em dev
+    if (!origin && env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // Verificar se origin está na lista permitida
+    if (origin && env.CORS_ORIGIN.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Em produção, bloquear origens não autorizadas
+    if (env.NODE_ENV === 'production') {
+      console.warn(`⚠️ CORS bloqueado para origem: ${origin}`);
+      return callback(new Error('Origem não permitida'), false);
+    }
+    
+    // Em dev, permitir qualquer origem
+    callback(null, true);
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Rate limiting global
+app.use(generalRateLimit);
 
 // Segurança com Helmet
 app.use(helmet({
@@ -73,20 +98,25 @@ app.get("/api/auth/user", (req: any, res) => {
   res.json({ id: u.sub || "guest", email: u.email || null, firstName: u.firstName || null, lastName: u.lastName || null, role: u.role || "Guest", schoolId: u.schoolId || null, profileImageUrl: null });
 });
 
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password } = req.body;
     
-    // Validação básica
-    if (!email || !password) {
-      return res.status(400).json({ error: "email_and_password_required" });
+    // Sanitização e validação
+    let cleanEmail: string;
+    let cleanPassword: string;
+    
+    try {
+      cleanEmail = sanitizeEmail(email);
+      cleanPassword = sanitizePassword(password);
+    } catch (error: any) {
+      return res.status(400).json({ 
+        error: "validation_error", 
+        message: error.message || "Dados inválidos" 
+      });
     }
     
-    // Sanitização básica - remover espaços e limitar tamanho
-    const cleanEmail = String(email).trim().toLowerCase().slice(0, 255);
-    const cleanPassword = String(password).slice(0, 100);
-    
-    if (process.env.AUTH_DEMO === "true") {
+    if (env.AUTH_DEMO) {
       const role = cleanEmail.includes("tesouraria") ? "Treasury" : 
                    cleanEmail.includes("prof") ? "Teacher" : 
                    cleanEmail.includes("secretario") ? "Secretary" : 
@@ -102,11 +132,17 @@ app.post("/api/login", async (req, res) => {
     
     if (!u || u.active === false) {
       // Sempre retornar mesmo erro para evitar enumeração de usuários
+      // Delay artificial para dificultar brute force
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
       return res.status(401).json({ error: "invalid_credentials" });
     }
     
     const ok = await bcrypt.compare(cleanPassword, String(u.passwordHash));
-    if (!ok) return res.status(401).json({ error: "invalid_credentials" });
+    if (!ok) {
+      // Delay artificial
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+      return res.status(401).json({ error: "invalid_credentials" });
+    }
     
     const token = signToken({ sub: u.id, email: u.email, role: u.role, schoolId: u.schoolId });
     res.json({ token, role: u.role });
@@ -674,7 +710,7 @@ app.patch("/api/secretary/subjects/:id", async (req, res) => {
   res.json(secSubjects[idx]);
 });
 
-app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
+app.post("/api/admin/users", requireRole("Admin"), validate(schemas.createUser), async (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -682,25 +718,31 @@ app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    console.log("🔍 POST /api/admin/users - AUTH_DEMO:", process.env.AUTH_DEMO);
+    console.log("🔍 POST /api/admin/users - AUTH_DEMO:", env.AUTH_DEMO);
     console.log("🔍 POST /api/admin/users - req.user:", (req as any).user);
-    console.log("🔍 POST /api/admin/users - Body:", JSON.stringify(req.body, null, 2));
     
-    const { email, password, role, firstName, lastName, schoolId } = req.body || {};
-    if (!email || !password || !role) {
+    const { email, password, role, firstName, lastName, schoolId } = req.body;
+    
+    // Sanitização adicional
+    let cleanEmail: string;
+    let cleanPassword: string;
+    
+    try {
+      cleanEmail = sanitizeEmail(email);
+      cleanPassword = sanitizePassword(password);
+    } catch (error: any) {
       return res.status(400).json({ 
-        error: "missing_fields", 
-        message: "Email, senha e role são obrigatórios",
-        received: { email: !!email, password: !!password, role: !!role }
+        error: "validation_error", 
+        message: error.message || "Dados inválidos"
       });
     }
     
     // Em modo demo, simular criação de usuário sem banco
-    if (process.env.AUTH_DEMO === "true" || !db) {
-      console.log("✅ MODO DEMO: Criando usuário simulado:", email);
+    if (env.AUTH_DEMO || !db) {
+      console.log("✅ MODO DEMO: Criando usuário simulado:", cleanEmail);
       const demoUser = {
         id: `demo-${Date.now()}`,
-        email: String(email),
+        email: cleanEmail,
         role: String(role),
         firstName: firstName || null,
         lastName: lastName || null,
@@ -719,9 +761,9 @@ app.post("/api/admin/users", requireRole("Admin"), async (req, res) => {
     }
     
     // Modo produção com banco de dados
-    const hash = await bcrypt.hash(String(password), 10);
+    const hash = await bcrypt.hash(cleanPassword, 10);
     const inserted = await db.insert(usersTable).values({ 
-      email: String(email), 
+      email: cleanEmail, 
       passwordHash: hash, 
       role: String(role), 
       firstName, 

@@ -37,6 +37,8 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 
+# Nota: .env.example DEVE ser commitado (template)
+
 # OS
 .DS_Store
 Thumbs.db

@@ -1,4 +1,6 @@
 import { Route, Switch } from "wouter";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
 import HierarchyDashboard from "./pages/HierarchyDashboard";
 import TeacherTerms from "./pages/teacher/TeacherTerms";
@@ -35,41 +37,206 @@ import LoginPage from "./pages/LoginPage";
 
 export default function App() {
   return (
-    <Switch>
-      <Route path="/login" component={LoginPage} />
-      <Route path="/" component={HierarchyDashboard} />
-      <Route path="/review" component={DesignReview} />
-      <Route path="/test-supabase" component={TestSupabase} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/teacher" component={TeacherTerms} />
-      <Route path="/teacher/:termId/classes" component={TeacherClasses} />
-      <Route path="/teacher/:termId/classes/:classId/subjects" component={TeacherSubjects} />
-      <Route path="/teacher/:termId/classes/:classId/subjects/:subjectId" component={TeacherTools} />
-      <Route path="/student" component={StudentDashboard} />
-      <Route path="/student/report-card" component={StudentReportCard} />
-      <Route path="/student/attendance" component={StudentAttendance} />
-      <Route path="/student/assignments" component={StudentAssignments} />
-      <Route path="/student/pedacoins" component={StudentPedacoins} />
-      <Route path="/student/chat" component={StudentChat} />
-      <Route path="/secretary" component={SecretaryDashboard} />
-      <Route path="/secretary/students" component={SecretaryStudents} />
-      <Route path="/secretary/classes" component={SecretaryClasses} />
-      <Route path="/secretary/subjects" component={SecretarySubjects} />
-      <Route path="/secretary/enrollments" component={SecretaryEnrollments} />
-      <Route path="/secretary/calendar" component={SecretaryCalendar} />
-      <Route path="/secretary/documents" component={SecretaryDocuments} />
-      <Route path="/secretary/communication" component={SecretaryCommunication} />
-      <Route path="/treasury" component={TreasuryDashboard} />
-      <Route path="/treasury/tuition" component={TreasuryTuition} />
-      <Route path="/treasury/invoices" component={TreasuryInvoices} />
-      <Route path="/treasury/cashflow" component={TreasuryCashflow} />
-      <Route path="/treasury/reports" component={TreasuryReports} />
-      <Route path="/education-secretary" component={EdSecretaryDashboard} />
-      <Route path="/education-secretary/reports" component={EdSecretaryReports} />
-      <Route path="/education-secretary/schools" component={EdSecretarySchools} />
-      <Route path="/education-secretary/planning" component={EdSecretaryPlanning} />
-      <Route path="/secretary/lesson-plans" component={SecretaryLessonPlans} />
-      <Route> <AdminDashboard /> </Route>
-    </Switch>
+    <ErrorBoundary>
+      <Switch>
+        {/* Rotas públicas */}
+        <Route path="/login" component={LoginPage} />
+        <Route path="/test-supabase" component={TestSupabase} />
+        
+        {/* Rotas protegidas */}
+        <Route path="/">
+          <ProtectedRoute>
+            <HierarchyDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/review">
+          <ProtectedRoute>
+            <DesignReview />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/admin">
+          <ProtectedRoute requiredRole="Admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/teacher">
+          <ProtectedRoute requiredRole="Teacher">
+            <TeacherTerms />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/teacher/:termId/classes">
+          <ProtectedRoute requiredRole="Teacher">
+            <TeacherClasses />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/teacher/:termId/classes/:classId/subjects">
+          <ProtectedRoute requiredRole="Teacher">
+            <TeacherSubjects />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/teacher/:termId/classes/:classId/subjects/:subjectId">
+          <ProtectedRoute requiredRole="Teacher">
+            <TeacherTools />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student">
+          <ProtectedRoute requiredRole="Student">
+            <StudentDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student/report-card">
+          <ProtectedRoute requiredRole="Student">
+            <StudentReportCard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student/attendance">
+          <ProtectedRoute requiredRole="Student">
+            <StudentAttendance />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student/assignments">
+          <ProtectedRoute requiredRole="Student">
+            <StudentAssignments />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student/pedacoins">
+          <ProtectedRoute requiredRole="Student">
+            <StudentPedacoins />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/student/chat">
+          <ProtectedRoute requiredRole="Student">
+            <StudentChat />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/students">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryStudents />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/classes">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryClasses />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/subjects">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretarySubjects />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/enrollments">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryEnrollments />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/calendar">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryCalendar />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/documents">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryDocuments />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/communication">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryCommunication />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/secretary/lesson-plans">
+          <ProtectedRoute requiredRole="Secretary">
+            <SecretaryLessonPlans />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/treasury">
+          <ProtectedRoute requiredRole="Treasury">
+            <TreasuryDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/treasury/tuition">
+          <ProtectedRoute requiredRole="Treasury">
+            <TreasuryTuition />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/treasury/invoices">
+          <ProtectedRoute requiredRole="Treasury">
+            <TreasuryInvoices />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/treasury/cashflow">
+          <ProtectedRoute requiredRole="Treasury">
+            <TreasuryCashflow />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/treasury/reports">
+          <ProtectedRoute requiredRole="Treasury">
+            <TreasuryReports />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/education-secretary">
+          <ProtectedRoute requiredRole="EducationSecretary">
+            <EdSecretaryDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/education-secretary/reports">
+          <ProtectedRoute requiredRole="EducationSecretary">
+            <EdSecretaryReports />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/education-secretary/schools">
+          <ProtectedRoute requiredRole="EducationSecretary">
+            <EdSecretarySchools />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/education-secretary/planning">
+          <ProtectedRoute requiredRole="EducationSecretary">
+            <EdSecretaryPlanning />
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Rota padrão */}
+        <Route>
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        </Route>
+      </Switch>
+    </ErrorBoundary>
   );
 }

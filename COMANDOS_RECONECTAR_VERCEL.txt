@@ -1,0 +1,51 @@
+===========================================
+COMANDOS PARA RECONECTAR O PROJETO NA VERCEL
+===========================================
+
+PASSO 1: Abrir o terminal no Cursor (Ctrl + `)
+
+PASSO 2: Executar estes comandos UM POR VEZ:
+
+1. Verificar se está na pasta correta:
+   cd "C:\Users\Claiton\Desktop\SISTEMA EDUCAÇÃO CURSOR"
+
+2. Login na Vercel (vai abrir o navegador):
+   vercel login
+
+3. Linkar o projeto existente (quando perguntar, responda):
+   vercel link
+   
+   Quando perguntar:
+   - Set up and deploy? → Digite: Y
+   - Which scope? → Escolha sua conta (geralmente aparece só uma)
+   - Link to existing project? → Digite: Y
+   - What's the name of your existing project? → Digite o nome exato do projeto na Vercel
+
+4. Fazer deploy para produção:
+   vercel --prod
+
+===========================================
+SE NÃO SOUBER O NOME DO PROJETO NA VERCEL:
+===========================================
+
+Quando perguntar "Link to existing project?", digite: N
+
+E depois:
+- What's your project's name? → Digite: aletheia
+- In which directory is your code located? → Digite: ./
+- Override settings? → Digite: N
+
+Depois execute: vercel --prod
+
+===========================================
+APÓS O DEPLOY:
+===========================================
+
+1. Acesse: https://vercel.com/dashboard
+2. Clique no seu projeto
+3. Vá em "Deployments"
+4. Você verá a nova implementação lá!
+
+
+
+

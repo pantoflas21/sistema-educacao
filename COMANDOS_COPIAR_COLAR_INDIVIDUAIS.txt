@@ -1,0 +1,75 @@
+# ============================================
+# COMANDOS PARA COPIAR E COLAR - UM POR VEZ
+# ============================================
+
+# COMANDO 1: Verificar se está no diretório correto
+# Copie e cole esta linha:
+cd "C:\Users\Claiton\Desktop\SISTEMA EDUCAÇÃO CURSOR"
+
+# COMANDO 2: Verificar status do Git
+# Copie e cole esta linha:
+git status
+
+# COMANDO 3: Adicionar todos os arquivos
+# Copie e cole esta linha:
+git add .
+
+# COMANDO 4: Verificar o que será commitado
+# Copie e cole esta linha:
+git status
+
+# COMANDO 5: Fazer commit
+# Copie e cole esta linha:
+git commit -m "FEAT: Melhorias criticas de seguranca e arquitetura - Rate limiting, validacao, CORS configurável, hooks reutilizaveis, error boundaries, protecao de rotas"
+
+# COMANDO 6: Verificar se já tem remote do GitHub
+# Copie e cole esta linha:
+git remote -v
+
+# COMANDO 7A: Se NÃO apareceu nada no comando anterior, adicione o remote do GitHub
+# SUBSTITUA "pantoflas21" e "sistema-educacao" pelos seus dados do GitHub:
+git remote add origin https://github.com/pantoflas21/sistema-educacao.git
+
+# COMANDO 7B: Se JÁ tem remote mas quer trocar, remova primeiro:
+git remote remove origin
+
+# Depois adicione o novo:
+git remote add origin https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
+
+# COMANDO 8: Mudar branch para main (se necessário)
+# Copie e cole esta linha:
+git branch -M main
+
+# COMANDO 9: Fazer push para o GitHub
+# Copie e cole esta linha:
+git push -u origin main
+
+# ============================================
+# SE DER ERRO NO PUSH (se já existir código no GitHub):
+# ============================================
+
+# Opção A: Fazer pull primeiro e depois push
+git pull origin main --allow-unrelated-histories
+
+# Depois faça o push:
+git push -u origin main
+
+# Opção B: Forçar push (CUIDADO: sobrescreve o que está no GitHub)
+git push -u origin main --force
+
+# ============================================
+# DEPOIS DO GITHUB, FAÇA O DEPLOY NA VERCEL:
+# ============================================
+# 1. Acesse: https://vercel.com
+# 2. Faça login
+# 3. Clique em "Add New..." → "Project"
+# 4. Importe seu repositório do GitHub
+# 5. Configure:
+#    - Build Command: cd apps/frontend && npm run build
+#    - Output Directory: apps/frontend/dist
+#    - Install Command: cd apps/backend && npm install && cd ../frontend && npm install
+# 6. Adicione variável de ambiente:
+#    - Name: AUTH_DEMO
+#    - Value: true
+# 7. Clique em "Deploy"
+

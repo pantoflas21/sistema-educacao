@@ -4,8 +4,8 @@ import { env } from "../config/env";
 export function signToken(payload: any) {
   // Garantir que expiresIn seja string (formato aceito pelo jwt.sign)
   // TypeScript precisa de type assertion para StringValue do jsonwebtoken
-  const expiresIn: string = String(env.JWT_EXPIRES_IN);
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn } as any);
+  const expiresIn = String(env.JWT_EXPIRES_IN) as any;
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn });
 }
 
 export function verifyToken(token: string) {

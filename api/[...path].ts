@@ -34,9 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Criar objeto Express compatível
     const method = (req.method || "GET").toUpperCase();
     const url = req.url || "/";
-    const path = url.split("?")[0] || "/";
+    // As rotas do Express já começam com /api/, então mantemos o path completo
+    // Quando a Vercel usa [...path].ts, req.url já inclui /api/...
+    let path = url.split("?")[0] || "/";
     
-    console.log(`🔍 Criando Express Req: ${method} ${path}`);
+    console.log(`🔍 Criando Express Req: ${method} ${path} (url: ${url})`);
     
     const expressReq: any = {
       method: method,
@@ -78,7 +80,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let responseHandled = false;
     
     await new Promise<void>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        if (!responseHandled && !res.writableEnded) {
+          responseHandled = true;
+          console.error("⏱️ Timeout - nenhuma resposta do Express");
+          res.status(504).json({ error: "Timeout", message: "A requisição demorou muito" });
+          resolve();
+        }
+      }, 10000); // Timeout reduzido para 10 segundos
+      
+      // Interceptar a resposta do Express
+      const originalJson = expressRes.json;
+      const originalSend = expressRes.send;
+      const originalEnd = expressRes.end;
+      
+      expressRes.json = function(data: any) {
+        if (!responseHandled) {
+          clearTimeout(timeoutId);
+          responseHandled = true;
+        }
+        return originalJson.call(this, data);
+      };
+      
+      expressRes.send = function(data: any) {
+        if (!responseHandled) {
+          clearTimeout(timeoutId);
+          responseHandled = true;
+        }
+        return originalSend.call(this, data);
+      };
+      
+      expressRes.end = function(data?: any) {
+        if (!responseHandled) {
+          clearTimeout(timeoutId);
+          responseHandled = true;
+        }
+        return originalEnd.call(this, data);
+      };
+      
       const next = (err?: any) => {
+        clearTimeout(timeoutId);
         if (err) {
           console.error("❌ Erro no Express:", err);
           if (!responseHandled) {
@@ -99,17 +140,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       
       console.log(`🚀 Chamando Express app: ${method} ${path}`);
+      // Chamar o Express corretamente
       app(expressReq, expressRes, next);
       
-      // Timeout de segurança
-      setTimeout(() => {
-        if (!responseHandled && !res.writableEnded) {
-          responseHandled = true;
-          console.error("⏱️ Timeout - nenhuma resposta do Express");
-          res.status(504).json({ error: "Timeout", message: "A requisição demorou muito" });
-          resolve();
-        }
-      }, 30000);
+      // Se a resposta já foi enviada, limpar timeout
+      if (res.writableEnded) {
+        clearTimeout(timeoutId);
+        responseHandled = true;
+        resolve();
+      }
     });
 
   } catch (err: any) {

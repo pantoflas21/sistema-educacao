@@ -185,7 +185,12 @@ export default function AdminDashboard() {
         return await r.json();
       } catch (error: any) {
         console.error("❌ Erro ao criar usuário:", error);
-        throw error;
+        // Melhorar mensagem de erro
+        const errorMessage = error?.message || error?.toString() || "Erro desconhecido";
+        if (errorMessage === "[object Object]") {
+          throw new Error("Erro ao criar usuário. Verifique os dados e tente novamente.");
+        }
+        throw new Error(errorMessage);
       }
     },
     onSuccess: (data) => {

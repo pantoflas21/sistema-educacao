@@ -79,39 +79,87 @@ export default function AdminDashboard() {
   const { data, isLoading, error } = useQuery<Overview>({ 
     queryKey: ["overview"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/statistics/overview", { 
-        signal,
-        headers: getAuthHeaders()
-      }); 
-      if (!r.ok) throw new Error("Erro ao carregar estatísticas");
-      return r.json(); 
+      try {
+        const r = await fetch("/api/statistics/overview", { 
+          signal,
+          headers: getAuthHeaders()
+        }); 
+        if (!r.ok) {
+          console.warn("⚠️ Erro ao carregar estatísticas:", r.status);
+          // Retornar dados padrão em vez de lançar erro
+          return {
+            totalUsers: 0,
+            totalStudents: 0,
+            totalTeachers: 0,
+            totalClasses: 0,
+            errorsLastHour: 0,
+            activeSessions: 0
+          };
+        }
+        return r.json(); 
+      } catch (err) {
+        console.error("❌ Erro ao buscar estatísticas:", err);
+        // Retornar dados padrão em caso de erro
+        return {
+          totalUsers: 0,
+          totalStudents: 0,
+          totalTeachers: 0,
+          totalClasses: 0,
+          errorsLastHour: 0,
+          activeSessions: 0
+        };
+      }
     },
-    retry: 2,
-    staleTime: 30000
+    retry: 1,
+    staleTime: 30000,
+    throwOnError: false
   });
 
   const usersQ = useQuery<User[]>({ 
     queryKey: ["admin", "users"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/admin/users", { 
-        signal,
-        headers: getAuthHeaders()
-      }); 
-      return r.json(); 
+      try {
+        const r = await fetch("/api/admin/users", { 
+          signal,
+          headers: getAuthHeaders()
+        }); 
+        if (!r.ok) {
+          console.warn("⚠️ Erro ao carregar usuários:", r.status);
+          return []; // Retornar array vazio em vez de lançar erro
+        }
+        return r.json(); 
+      } catch (err) {
+        console.error("❌ Erro ao buscar usuários:", err);
+        return []; // Retornar array vazio em caso de erro
+      }
     },
-    enabled: activeSection === "users"
+    enabled: activeSection === "users",
+    retry: 1,
+    staleTime: 30000
   });
 
   const schoolsQ = useQuery<School[]>({ 
     queryKey: ["admin", "schools"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/admin/schools", { 
-        signal,
-        headers: getAuthHeaders()
-      }); 
-      return r.json(); 
+      try {
+        const r = await fetch("/api/admin/schools", { 
+          signal,
+          headers: getAuthHeaders()
+        }); 
+        if (!r.ok) {
+          console.warn("⚠️ Erro ao carregar escolas:", r.status);
+          return [];
+        }
+        return r.json(); 
+      } catch (err) {
+        console.error("❌ Erro ao buscar escolas:", err);
+        return [];
+      }
     },
-    enabled: activeSection === "schools"
+    enabled: activeSection === "schools",
+    retry: 1,
+    staleTime: 30000,
+    throwOnError: false
   });
 
   const createUser = useMutation({

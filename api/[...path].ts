@@ -120,8 +120,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }, 30000); // 30 segundos
     
     try {
-      app(expressReq, expressRes, () => {
+      // Chamar app Express - precisa ser tratado como middleware
+      const next = (err?: any) => {
         clearTimeout(timeout);
+        if (err) {
+          if (!responseSent) {
+            responseSent = true;
+            console.error("❌ Erro no Express:", err);
+            res.status(500).json({ 
+              error: "Erro interno do servidor", 
+              message: err?.message || "Erro desconhecido",
+              path: req.url 
+            });
+            resolve(undefined);
+          }
+          return;
+        }
         // Se chegou aqui sem resposta (404), retornar JSON de erro
         if (!responseSent) {
           responseSent = true;
@@ -133,7 +147,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
           resolve(undefined);
         }
-      });
+      };
+      
+      // Chamar app Express como função
+      app(expressReq, expressRes, next);
     } catch (error: any) {
       clearTimeout(timeout);
       if (!responseSent) {

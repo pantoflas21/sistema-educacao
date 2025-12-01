@@ -22,29 +22,10 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// CORS configurado com origens permitidas
+// CORS configurado - PERMITE TODAS AS ORIGENS (Vercel)
 app.use(cors({ 
-  origin: (origin, callback) => {
-    // Permitir requisições sem origin (mobile apps, Postman, etc) apenas em dev
-    if (!origin && env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    // Verificar se origin está na lista permitida
-    if (origin && env.CORS_ORIGIN.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // Em produção, bloquear origens não autorizadas
-    if (env.NODE_ENV === 'production') {
-      console.warn(`⚠️ CORS bloqueado para origem: ${origin}`);
-      return callback(new Error('Origem não permitida'), false);
-    }
-    
-    // Em dev, permitir qualquer origem
-    callback(null, true);
-  },
-  credentials: true,
+  origin: "*", // Permitir todas as origens na Vercel
+  credentials: false, // Não precisa de credentials quando origin é *
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
@@ -631,8 +612,24 @@ let secTerms: { number: number; startDate: string; endDate: string; status: "ope
   { number: 4, startDate: "2025-08-01", endDate: "2025-09-30", status: "locked" }
 ];
 
+// GET /api/secretary/students - Listar alunos (CORRIGIDA)
 app.get("/api/secretary/students", (req, res) => {
-  res.json(secStudents);
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.status(200).json(secStudents);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar alunos:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar alunos", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 // POST /api/secretary/students - Criar aluno (CORRIGIDA)
@@ -697,14 +694,33 @@ app.delete("/api/secretary/students/:id", (req, res) => {
   res.json(removed);
 });
 
-app.get("/api/secretary/classes", (req, res) => {
-  if (db) {
-    db.select().from(classesTable).then(rows => {
-      res.json(rows.map((r: any) => ({ id: r.code, name: r.name, capacity: r.capacity, shift: r.shift })));
+// GET /api/secretary/classes - Listar turmas (CORRIGIDA)
+app.get("/api/secretary/classes", async (req, res) => {
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    if (db) {
+      const rows = await db.select().from(classesTable);
+      const classes = rows.map((r: any) => ({ id: r.code, name: r.name, capacity: r.capacity, shift: r.shift }));
+      console.log("✅ GET /api/secretary/classes - Retornando", classes.length, "turmas");
+      return res.status(200).json(classes);
+    }
+    
+    console.log("✅ GET /api/secretary/classes - Retornando", secClasses.length, "turmas (demo)");
+    res.status(200).json(secClasses);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar turmas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar turmas", 
+      message: error?.message || "Erro interno do servidor"
     });
-    return;
   }
-  res.json(secClasses);
 });
 
 // POST /api/secretary/classes - Criar turma (CORRIGIDA)
@@ -777,14 +793,33 @@ app.patch("/api/secretary/classes/:id", async (req, res) => {
   res.json(secClasses[idx]);
 });
 
-app.get("/api/secretary/subjects", (req, res) => {
-  if (db) {
-    db.select().from(subjectsTable).then(rows => {
-      res.json(rows.map((r: any) => ({ id: r.code, code: r.code, name: r.name, workload: r.workload })));
+// GET /api/secretary/subjects - Listar disciplinas (CORRIGIDA)
+app.get("/api/secretary/subjects", async (req, res) => {
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    if (db) {
+      const rows = await db.select().from(subjectsTable);
+      const subjects = rows.map((r: any) => ({ id: r.code, code: r.code, name: r.name, workload: r.workload }));
+      console.log("✅ GET /api/secretary/subjects - Retornando", subjects.length, "disciplinas");
+      return res.status(200).json(subjects);
+    }
+    
+    console.log("✅ GET /api/secretary/subjects - Retornando", secSubjects.length, "disciplinas (demo)");
+    res.status(200).json(secSubjects);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar disciplinas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar disciplinas", 
+      message: error?.message || "Erro interno do servidor"
     });
-    return;
   }
-  res.json(secSubjects);
 });
 
 // POST /api/secretary/subjects - Criar disciplina (CORRIGIDA)
@@ -976,9 +1011,27 @@ app.post("/api/admin/users", requireRole("Admin"), validate(schemas.createUser),
   }
 });
 
+// GET /api/secretary/class-subjects - Listar disciplinas da turma (CORRIGIDA)
 app.get("/api/secretary/class-subjects", (req, res) => {
-  const classId = String(req.query.classId || "");
-  res.json((classSubjects as any)[classId] || []);
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const classId = String(req.query.classId || "");
+    const subjects = (classSubjects as any)[classId] || [];
+    res.status(200).json(subjects);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar disciplinas da turma:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar disciplinas", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 // POST /api/secretary/class-subjects - Associar disciplina à turma (CORRIGIDA)
@@ -1066,10 +1119,27 @@ app.post("/api/secretary/enrollments", (req, res) => {
   }
 });
 
+// GET /api/secretary/enrollments - Listar matrículas (CORRIGIDA)
 app.get("/api/secretary/enrollments", (req, res) => {
-  const { classId, studentId } = req.query as any;
-  const list = secEnrollments.filter(e => (!classId || e.classId === classId) && (!studentId || e.studentId === studentId));
-  res.json(list);
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { classId, studentId } = req.query as any;
+    const list = secEnrollments.filter(e => (!classId || e.classId === classId) && (!studentId || e.studentId === studentId));
+    res.status(200).json(list);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar matrículas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar matrículas", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 app.get("/api/secretary/calendar/terms", (req, res) => {

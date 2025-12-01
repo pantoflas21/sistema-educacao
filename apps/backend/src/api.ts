@@ -912,16 +912,16 @@ app.get("/api/admin/users", async (req, res) => {
     }
     
     // Modo produção com banco de dados
-    const users = await db.select({
-      id: usersTable.id,
-      email: usersTable.email,
-      role: usersTable.role,
-      firstName: usersTable.firstName,
-      lastName: usersTable.lastName,
-      active: usersTable.active,
-      schoolId: usersTable.schoolId,
-      lastLogin: usersTable.lastLogin,
-    }).from(usersTable);
+           const users = await db.select({
+             id: usersTable.id,
+             email: usersTable.email,
+             role: usersTable.role,
+             firstName: usersTable.firstName,
+             lastName: usersTable.lastName,
+             active: usersTable.active,
+             schoolId: usersTable.schoolId,
+             createdAt: usersTable.createdAt,
+           }).from(usersTable);
     
     console.log("✅ GET /api/admin/users - Retornando", users.length, "usuários");
     res.status(200).json(users);

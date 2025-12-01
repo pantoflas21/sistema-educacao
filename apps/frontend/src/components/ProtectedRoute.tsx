@@ -1,11 +1,13 @@
 /**
  * Componente para proteger rotas
  * Redireciona para login se não autenticado
+ * 100% Frontend - não usa API
  */
 
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '../hooks/useAuth';
+import { isAuthenticated } from '../lib/authLocal';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,29 +21,25 @@ export function ProtectedRoute({
   fallback 
 }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated: authState } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // Verificar autenticação do localStorage diretamente
+    if (!isAuthenticated()) {
       setLocation('/login');
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [authState, setLocation]);
 
-  // Mostrar loading enquanto verifica autenticação
-  if (isLoading) {
-    return (
+  // Não autenticado - redirecionar (o useEffect já faz isso)
+  if (!isAuthenticated()) {
+    return fallback || (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="mt-4 text-slate-600">Carregando...</p>
+          <p className="mt-4 text-slate-600">Redirecionando para login...</p>
         </div>
       </div>
     );
-  }
-
-  // Não autenticado - redirecionar (o useEffect já faz isso)
-  if (!isAuthenticated) {
-    return fallback || null;
   }
 
   // Verificar role se necessário

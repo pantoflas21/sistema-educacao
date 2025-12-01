@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "../hooks/useAuth";
+import { loginLocal, saveAuth } from "../lib/authLocal";
 
 type LoginConfig = {
   logoUrl?: string;
@@ -12,6 +14,7 @@ type LoginConfig = {
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,21 +37,8 @@ export default function LoginPage() {
           }
         }
         
-        // Tentar carregar do backend
-        try {
-          const r = await fetch("/api/admin/login-config");
-          if (r.ok) {
-            const contentType = r.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-              const text = await r.text();
-              if (text) {
-                return JSON.parse(text);
-              }
-            }
-          }
-        } catch {
-          // Ignorar erros ao carregar do backend
-        }
+        // Configuração agora é apenas local (sem API)
+        // Pode ser expandido para carregar de um arquivo JSON ou outro serviço externo
         
         return {};
       } catch {
@@ -85,16 +75,12 @@ export default function LoginPage() {
     }
   });
 
-  // Salvar configuração
+  // Salvar configuração (apenas local, sem API)
   const saveConfig = useMutation({
     mutationFn: async (newConfig: LoginConfig) => {
-      const r = await fetch("/api/admin/login-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newConfig)
-      });
-      if (!r.ok) throw new Error("Erro ao salvar configuração");
-      return await r.json();
+      // Simular delay de salvamento
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return newConfig;
     },
     onSuccess: (data) => {
       localStorage.setItem("school-login-config", JSON.stringify(data));
@@ -118,56 +104,9 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      // Verificar se a resposta é JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        throw new Error(`Erro na API: ${text || response.statusText}`);
-      }
-
-      const text = await response.text();
-      if (!text) {
-        throw new Error("Resposta vazia do servidor");
-      }
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error("Erro ao parsear JSON:", text);
-        throw new Error("Resposta inválida do servidor");
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Erro ao fazer login");
-      }
-
-      // Salvar token
-      if (data.token) {
-        localStorage.setItem("auth_token", data.token);
-      }
-
-      // Redirecionar baseado no role
-      const role = data.role || "Admin";
-      const roleRoutes: Record<string, string> = {
-        Admin: "/admin",
-        Teacher: "/teacher",
-        Student: "/student",
-        Secretary: "/secretary",
-        Treasury: "/treasury",
-        EducationSecretary: "/education-secretary",
-      };
-
-      const redirectTo = roleRoutes[role] || "/admin";
-      setLocation(redirectTo);
+      // Usar função de login do hook (100% local, sem API)
+      await login(email, password);
+      // O hook já faz o redirecionamento automaticamente
     } catch (err: any) {
       console.error("Erro no login:", err);
       setError(err.message || "Erro ao fazer login. Verifique suas credenciais.");

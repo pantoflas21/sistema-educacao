@@ -4,6 +4,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import app from "../apps/backend/src/api";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Log da requisição para debug
+  console.log(`🔍 Handler Vercel: ${req.method} ${req.url}`);
+  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
+  console.log(`📦 Body:`, typeof req.body, req.body);
+  
   // Headers CORS globais
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
@@ -11,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Resposta para preflight OPTIONS
   if (req.method === "OPTIONS") {
+    console.log("✅ OPTIONS request - retornando 200");
     return res.status(200).end();
   }
 
@@ -26,14 +32,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Criar objeto Express compatível
+    const method = (req.method || "GET").toUpperCase();
+    const url = req.url || "/";
+    const path = url.split("?")[0] || "/";
+    
+    console.log(`🔍 Criando Express Req: ${method} ${path}`);
+    
     const expressReq: any = {
-      method: req.method,
-      url: req.url,
-      path: req.url?.split("?")[0] || "/",
-      query: req.query,
+      method: method,
+      url: url,
+      path: path,
+      query: req.query || {},
       body: parsedBody,
-      headers: req.headers,
-      get: (name: string) => req.headers[name.toLowerCase()] || req.headers[name],
+      headers: req.headers || {},
+      params: {},
+      get: (name: string) => {
+        const lower = name.toLowerCase();
+        return req.headers?.[lower] || req.headers?.[name];
+      },
+      header: (name: string) => {
+        const lower = name.toLowerCase();
+        return req.headers?.[lower] || req.headers?.[name];
+      },
+      originalUrl: url,
+      baseUrl: "",
+      route: undefined,
     };
 
     const expressRes: any = {
@@ -52,14 +75,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     // Encapsular o Express em Promise
+    let responseHandled = false;
+    
     await new Promise<void>((resolve) => {
-      app(expressReq, expressRes, () => {
-        // Se a rota não existir, retorna 404 JSON
-        if (!res.writableEnded) {
-          res.status(404).json({ error: "Rota não encontrada", path: req.url });
+      const next = (err?: any) => {
+        if (err) {
+          console.error("❌ Erro no Express:", err);
+          if (!responseHandled) {
+            responseHandled = true;
+            res.status(500).json({ error: "Erro interno do servidor", message: err.message });
+          }
+          resolve();
+          return;
+        }
+        
+        // Se chegou aqui e não houve resposta, é 404
+        if (!responseHandled && !res.writableEnded) {
+          responseHandled = true;
+          console.warn("⚠️ Rota não encontrada:", method, path);
+          res.status(404).json({ error: "Rota não encontrada", method, path: req.url });
         }
         resolve();
-      });
+      };
+      
+      console.log(`🚀 Chamando Express app: ${method} ${path}`);
+      app(expressReq, expressRes, next);
+      
+      // Timeout de segurança
+      setTimeout(() => {
+        if (!responseHandled && !res.writableEnded) {
+          responseHandled = true;
+          console.error("⏱️ Timeout - nenhuma resposta do Express");
+          res.status(504).json({ error: "Timeout", message: "A requisição demorou muito" });
+          resolve();
+        }
+      }, 30000);
     });
 
   } catch (err: any) {

@@ -457,11 +457,45 @@ export default function LoginPage() {
         )}
 
         {/* Informações de Demo */}
-        <div className="mt-6 text-center text-sm text-slate-600">
-          <p>Modo Demo: Use qualquer email e senha</p>
-          <p className="text-xs mt-1">
-            Dica: Email com "prof" = Professor, "secretario" = Secretário
-          </p>
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-blue-900 mb-3">🔑 Credenciais de Teste (Modo Demo)</h3>
+          <div className="space-y-2 text-xs text-blue-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <strong>👨‍💼 Administrador:</strong>
+                <p className="text-blue-700">admin@escola.com</p>
+                <p className="text-blue-600">(ou qualquer email)</p>
+              </div>
+              <div>
+                <strong>👨‍🏫 Professor:</strong>
+                <p className="text-blue-700">prof@escola.com</p>
+                <p className="text-blue-600">(email com "prof")</p>
+              </div>
+              <div>
+                <strong>📋 Secretário:</strong>
+                <p className="text-blue-700">secretario@escola.com</p>
+                <p className="text-blue-600">(email com "secretario")</p>
+              </div>
+              <div>
+                <strong>💰 Tesouraria:</strong>
+                <p className="text-blue-700">tesouraria@escola.com</p>
+                <p className="text-blue-600">(email com "tesouraria")</p>
+              </div>
+              <div>
+                <strong>🏛️ Secretaria de Educação:</strong>
+                <p className="text-blue-700">educacao@escola.com</p>
+                <p className="text-blue-600">(email com "educacao")</p>
+              </div>
+              <div>
+                <strong>👨‍🎓 Aluno:</strong>
+                <p className="text-blue-700">aluno@escola.com</p>
+                <p className="text-blue-600">(email com "aluno")</p>
+              </div>
+            </div>
+            <p className="mt-3 pt-3 border-t border-blue-200 text-blue-700">
+              <strong>Senha:</strong> Qualquer valor (não é validada no modo demo)
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -54,7 +54,22 @@ app.get("/api/auth/user", (req: any, res) => {
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (process.env.AUTH_DEMO === "true") {
-    const role = email?.includes("tesouraria") ? "Treasury" : email?.includes("prof") ? "Teacher" : email?.includes("secretario") ? "Secretary" : email?.includes("educacao") ? "EducationSecretary" : "Admin";
+    // Detectar role baseado no email (modo demo)
+    let role = "Admin"; // padrão
+    const emailLower = String(email || "").toLowerCase();
+    
+    if (emailLower.includes("tesouraria")) {
+      role = "Treasury";
+    } else if (emailLower.includes("prof") || emailLower.includes("professor")) {
+      role = "Teacher";
+    } else if (emailLower.includes("secretario") || emailLower.includes("secretaria")) {
+      role = "Secretary";
+    } else if (emailLower.includes("educacao") || emailLower.includes("educação")) {
+      role = "EducationSecretary";
+    } else if (emailLower.includes("aluno") || emailLower.includes("student")) {
+      role = "Student";
+    }
+    
     const token = signToken({ sub: email || "demo-admin", email: email || "admin@example.com", role });
     return res.json({ token, role });
   }

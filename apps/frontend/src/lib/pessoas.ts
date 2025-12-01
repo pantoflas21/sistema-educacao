@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseAvailable } from './supabaseClient';
 
 /**
  * Interface para os dados de uma pessoa
@@ -69,6 +69,14 @@ export async function cadastrarPessoa(
       return {
         success: false,
         error: 'Data de nascimento deve estar no formato YYYY-MM-DD'
+      };
+    }
+
+    // Verificar se Supabase está configurado
+    if (!isSupabaseAvailable) {
+      return {
+        success: false,
+        error: 'Supabase não está configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env (opcional - o sistema funciona sem Supabase)'
       };
     }
 

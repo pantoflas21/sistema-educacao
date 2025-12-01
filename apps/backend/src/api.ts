@@ -117,10 +117,22 @@ app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) 
     }
     
     if (env.AUTH_DEMO) {
-      const role = cleanEmail.includes("tesouraria") ? "Treasury" : 
-                   cleanEmail.includes("prof") ? "Teacher" : 
-                   cleanEmail.includes("secretario") ? "Secretary" : 
-                   cleanEmail.includes("educacao") ? "EducationSecretary" : "Admin";
+      // Detectar role baseado no email (modo demo)
+      let role = "Admin"; // padrão
+      const emailLower = cleanEmail.toLowerCase();
+      
+      if (emailLower.includes("tesouraria")) {
+        role = "Treasury";
+      } else if (emailLower.includes("prof") || emailLower.includes("professor")) {
+        role = "Teacher";
+      } else if (emailLower.includes("secretario") || emailLower.includes("secretaria")) {
+        role = "Secretary";
+      } else if (emailLower.includes("educacao") || emailLower.includes("educação")) {
+        role = "EducationSecretary";
+      } else if (emailLower.includes("aluno") || emailLower.includes("student")) {
+        role = "Student";
+      }
+      
       const token = signToken({ sub: cleanEmail || "demo-admin", email: cleanEmail || "admin@example.com", role });
       return res.json({ token, role });
     }

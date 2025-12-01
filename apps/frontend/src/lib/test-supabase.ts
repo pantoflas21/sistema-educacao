@@ -3,7 +3,7 @@
  * Execute este arquivo no console do navegador ou importe em um componente temporário
  */
 
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseAvailable } from './supabaseClient';
 import { cadastrarPessoa } from './pessoas';
 
 /**
@@ -12,6 +12,15 @@ import { cadastrarPessoa } from './pessoas';
 export async function testarConexaoSupabase() {
   try {
     console.log('🔍 Testando conexão com Supabase...');
+    
+    // Verificar se Supabase está configurado
+    if (!isSupabaseAvailable) {
+      return {
+        success: false,
+        error: 'Supabase não está configurado',
+        message: '⚠️ Supabase é OPCIONAL. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env se quiser usar funcionalidades do Supabase. O sistema funciona normalmente sem ele usando o backend Express.'
+      };
+    }
     
     // Teste 1: Verificar se o cliente foi criado
     if (!supabase) {
@@ -27,7 +36,7 @@ export async function testarConexaoSupabase() {
       throw new Error('VITE_SUPABASE_URL não está configurada no .env');
     }
     console.log('✅ VITE_SUPABASE_URL configurada:', url.substring(0, 30) + '...');
-
+    
     if (!key || key.trim() === '') {
       throw new Error('VITE_SUPABASE_ANON_KEY não está configurada no .env');
     }

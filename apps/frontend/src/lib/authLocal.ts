@@ -1,6 +1,12 @@
 /**
- * Sistema de Autenticação Local (100% Frontend)
- * Funciona sem backend, usando localStorage
+ * Sistema de Autenticação Híbrida (Frontend com Fallback)
+ * 
+ * PRIORIDADE 1: Tenta usar API do backend (usuários reais do banco)
+ * PRIORIDADE 2: Se API não disponível, usa modo local (fallback)
+ * 
+ * Isso garante que o sistema sempre funcione:
+ * - Com banco de dados → usa API e usuários reais
+ * - Sem banco de dados → usa modo demo local
  */
 
 export interface User {
@@ -192,9 +198,90 @@ function detectRoleFromEmail(email: string): User | null {
 }
 
 /**
- * Faz login local (sem API)
+ * Tenta fazer login via API do backend
+ * Retorna null se API não estiver disponível (para fallback)
  */
-export function loginLocal(email: string, password: string): Promise<{ user: User; token: string }> {
+async function tryLoginViaAPI(email: string, password: string): Promise<{ user: User; token: string } | null> {
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    // Se API não estiver disponível ou erro de rede, retornar null para usar fallback
+    if (!response.ok) {
+      // Se erro 401, é credencial inválida (API está funcionando mas senha errada)
+      if (response.status === 401) {
+        const errorData = await response.json().catch(() => ({ error: 'invalid_credentials' }));
+        throw new Error(errorData.message || 'Email ou senha inválidos');
+      }
+      // Outros erros: API pode não estar disponível, usar fallback
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // API retornou token e role
+    if (data.token && data.role) {
+      // Buscar dados completos do usuário
+      try {
+        const userResponse = await fetch('/api/auth/user', {
+          headers: {
+            'Authorization': `Bearer ${data.token}`,
+          },
+        });
+
+        let userData: any = null;
+        if (userResponse.ok) {
+          userData = await userResponse.json();
+        }
+
+        // Montar objeto User completo com dados do backend
+        const user: User = {
+          id: String(userData?.id || email),
+          email: userData?.email || email.toLowerCase().trim(),
+          firstName: userData?.firstName || null,
+          lastName: userData?.lastName || null,
+          role: userData?.role || data.role,
+          schoolId: userData?.schoolId || null,
+          profileImageUrl: userData?.profileImageUrl || null,
+        };
+
+        return { user, token: data.token };
+      } catch (userError) {
+        // Se não conseguir buscar dados completos, criar user básico com role
+        // Isso mantém o sistema funcionando mesmo se /api/auth/user falhar
+        const user: User = {
+          id: email.toLowerCase().trim(),
+          email: email.toLowerCase().trim(),
+          firstName: null,
+          lastName: null,
+          role: data.role,
+          schoolId: null,
+          profileImageUrl: null,
+        };
+        return { user, token: data.token };
+      }
+    }
+
+    return null;
+  } catch (error: any) {
+    // Se erro de rede ou API indisponível, retornar null para usar fallback local
+    // Mas se erro foi lançado explicitamente (como credencial inválida), propagar
+    if (error.message && error.message.includes('inválid')) {
+      throw error;
+    }
+    return null;
+  }
+}
+
+/**
+ * Faz login local (sem API) - FALLBACK quando API não está disponível
+ */
+function loginLocalFallback(email: string, password: string): Promise<{ user: User; token: string }> {
   return new Promise((resolve, reject) => {
     // Simular delay de rede
     setTimeout(() => {
@@ -228,6 +315,27 @@ export function loginLocal(email: string, password: string): Promise<{ user: Use
       reject(new Error('Email ou senha inválidos'));
     }, 500); // Simular delay de 500ms
   });
+}
+
+/**
+ * Faz login de forma híbrida:
+ * 1. Tenta via API primeiro (para usuários reais do banco)
+ * 2. Se API não estiver disponível, usa modo local (fallback)
+ * 
+ * Isso mantém compatibilidade total - tudo continua funcionando!
+ */
+export async function loginLocal(email: string, password: string): Promise<{ user: User; token: string }> {
+  // Tentar API primeiro
+  const apiResult = await tryLoginViaAPI(email, password);
+  
+  // Se API funcionou, retornar resultado
+  if (apiResult) {
+    return apiResult;
+  }
+  
+  // Se API não está disponível, usar fallback local (modo demo)
+  // Isso garante que o sistema continue funcionando mesmo sem backend
+  return loginLocalFallback(email, password);
 }
 
 /**

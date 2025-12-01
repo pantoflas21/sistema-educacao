@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { getAuthToken } from "../lib/authLocal";
 
 type Overview = {
   systemHealth: number;
@@ -54,6 +55,19 @@ function StatCard({ title, value, color, subtitle, icon }: { title: string; valu
   );
 }
 
+// Helper para adicionar token de autenticação nas requisições
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<"overview" | "users" | "analytics" | "finance" | "schools" | "security" | "reports">("overview");
   const [showUserModal, setShowUserModal] = useState(false);
@@ -65,7 +79,10 @@ export default function AdminDashboard() {
   const { data, isLoading, error } = useQuery<Overview>({ 
     queryKey: ["overview"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/statistics/overview", { signal }); 
+      const r = await fetch("/api/statistics/overview", { 
+        signal,
+        headers: getAuthHeaders()
+      }); 
       if (!r.ok) throw new Error("Erro ao carregar estatísticas");
       return r.json(); 
     },
@@ -76,7 +93,10 @@ export default function AdminDashboard() {
   const usersQ = useQuery<User[]>({ 
     queryKey: ["admin", "users"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/admin/users", { signal }); 
+      const r = await fetch("/api/admin/users", { 
+        signal,
+        headers: getAuthHeaders()
+      }); 
       return r.json(); 
     },
     enabled: activeSection === "users"
@@ -85,7 +105,10 @@ export default function AdminDashboard() {
   const schoolsQ = useQuery<School[]>({ 
     queryKey: ["admin", "schools"], 
     queryFn: async ({ signal }) => { 
-      const r = await fetch("/api/admin/schools", { signal }); 
+      const r = await fetch("/api/admin/schools", { 
+        signal,
+        headers: getAuthHeaders()
+      }); 
       return r.json(); 
     },
     enabled: activeSection === "schools"
@@ -96,10 +119,7 @@ export default function AdminDashboard() {
       try {
         const r = await fetch("/api/admin/users", {
           method: editingUser ? "PUT" : "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify(editingUser ? { ...payload, id: editingUser.id } : payload)
         });
         
@@ -135,7 +155,10 @@ export default function AdminDashboard() {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
-      const r = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      const r = await fetch(`/api/admin/users/${userId}`, { 
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
       return r.json();
     },
     onSuccess: () => {
@@ -147,7 +170,7 @@ export default function AdminDashboard() {
     mutationFn: async ({ userId, active }: { userId: string; active: boolean }) => {
       const r = await fetch(`/api/admin/users/${userId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ active })
       });
       return r.json();
@@ -159,7 +182,10 @@ export default function AdminDashboard() {
 
   const resetPassword = useMutation({
     mutationFn: async (userId: string) => {
-      const r = await fetch(`/api/admin/users/${userId}/reset-password`, { method: "POST" });
+      const r = await fetch(`/api/admin/users/${userId}/reset-password`, { 
+        method: "POST",
+        headers: getAuthHeaders()
+      });
       return r.json();
     }
   });

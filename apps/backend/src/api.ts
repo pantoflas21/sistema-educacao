@@ -164,8 +164,15 @@ app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) 
   }
 });
 
+// GET /api/statistics/overview - Estatísticas do sistema (CORRIGIDA)
 app.get("/api/statistics/overview", (req, res) => {
   try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     const data = { 
       systemHealth: 98, 
       activeUsers: 120, 
@@ -175,11 +182,16 @@ app.get("/api/statistics/overview", (req, res) => {
       engagement: { dailyActive: 80, weeklyActive: 220 }, 
       errorsLastHour: 1 
     };
-    console.log("GET /api/statistics/overview - Retornando:", data);
-    res.json(data);
-  } catch (error) {
-    console.error("Erro ao retornar estatísticas:", error);
-    res.status(500).json({ error: "Erro ao carregar estatísticas" });
+    console.log("✅ GET /api/statistics/overview - Retornando estatísticas");
+    res.status(200).json(data);
+  } catch (error: any) {
+    console.error("❌ Erro ao retornar estatísticas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao carregar estatísticas", 
+      message: error?.message || "Erro interno do servidor"
+    });
   }
 });
 
@@ -722,6 +734,53 @@ app.patch("/api/secretary/subjects/:id", async (req, res) => {
   res.json(secSubjects[idx]);
 });
 
+// GET /api/admin/users - Listar usuários (CORRIGIDA)
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    console.log("🔍 GET /api/admin/users - AUTH_DEMO:", env.AUTH_DEMO);
+    
+    // Em modo demo, retornar lista mock
+    if (env.AUTH_DEMO || !db) {
+      const demoUsers = [
+        { id: "1", email: "admin@escola.com", role: "Admin", firstName: "Admin", lastName: "Sistema", active: true },
+        { id: "2", email: "prof@escola.com", role: "Teacher", firstName: "Professor", lastName: "Teste", active: true },
+      ];
+      console.log("✅ GET /api/admin/users - Retornando", demoUsers.length, "usuários (modo demo)");
+      return res.status(200).json(demoUsers);
+    }
+    
+    // Modo produção com banco de dados
+    const users = await db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      role: usersTable.role,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+      active: usersTable.active,
+      schoolId: usersTable.schoolId,
+      lastLogin: usersTable.lastLogin,
+    }).from(usersTable);
+    
+    console.log("✅ GET /api/admin/users - Retornando", users.length, "usuários");
+    res.status(200).json(users);
+  } catch (error: any) {
+    console.error("❌ Erro ao listar usuários:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao listar usuários", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
+});
+
+// POST /api/admin/users - Criar usuário (CORRIGIDA)
 app.post("/api/admin/users", requireRole("Admin"), validate(schemas.createUser), async (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo

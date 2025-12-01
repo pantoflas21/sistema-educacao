@@ -1,6 +1,7 @@
 /**
- * Hook de autenticação LOCAL (100% Frontend)
- * Não usa API, funciona apenas com localStorage
+ * Hook de autenticação HÍBRIDA
+ * Tenta API primeiro (usuários reais), depois fallback local (modo demo)
+ * Funciona com ou sem backend - mantém compatibilidade total
  */
 
 import { useState, useEffect } from 'react';

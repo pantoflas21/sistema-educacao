@@ -4,11 +4,6 @@
   "outputDirectory": "apps/frontend/dist",
   "installCommand": "cd apps/backend && npm install && cd ../frontend && npm install",
   "framework": "vite",
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

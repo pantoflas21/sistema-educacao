@@ -635,12 +635,50 @@ app.get("/api/secretary/students", (req, res) => {
   res.json(secStudents);
 });
 
-app.post("/api/secretary/students", (req, res) => {
-  const { name, cpf, rg, birthDate, classId } = req.body;
-  const id = `stu-${Date.now()}`;
-  const s = { id, name, cpf, rg, birthDate, classId };
-  secStudents.push(s);
-  res.status(201).json(s);
+// POST /api/secretary/students - Criar aluno (CORRIGIDA)
+app.post("/api/secretary/students", async (req, res) => {
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { name, cpf, rg, birthDate, classId, address, guardians, medicalInfo } = req.body || {};
+    
+    // Validação básica
+    if (!name || !cpf) {
+      return res.status(400).json({ 
+        error: "validation_error",
+        message: "Nome e CPF são obrigatórios"
+      });
+    }
+    
+    const id = `stu-${Date.now()}`;
+    const s = { 
+      id, 
+      name: String(name), 
+      cpf: String(cpf), 
+      rg: rg ? String(rg) : undefined, 
+      birthDate: birthDate ? String(birthDate) : undefined, 
+      classId: classId ? String(classId) : undefined,
+      address: address || undefined,
+      guardians: guardians || undefined,
+      medicalInfo: medicalInfo || undefined,
+    };
+    secStudents.push(s);
+    
+    console.log("✅ POST /api/secretary/students - Aluno criado:", id);
+    res.status(201).json(s);
+  } catch (error: any) {
+    console.error("❌ Erro ao criar aluno:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao criar aluno", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 app.patch("/api/secretary/students/:id", (req, res) => {
@@ -669,18 +707,60 @@ app.get("/api/secretary/classes", (req, res) => {
   res.json(secClasses);
 });
 
+// POST /api/secretary/classes - Criar turma (CORRIGIDA)
 app.post("/api/secretary/classes", async (req, res) => {
-  const { name, capacity, shift, code } = req.body || {};
-  const genCode = String(code || (name || "").toString().trim().toUpperCase().replace(/\s+/g, "_"));
-  if (db) {
-    const inserted = await db.insert(classesTable).values({ code: genCode, name: String(name||genCode), capacity: Number(capacity||0), shift: String(shift||"manha") }).returning();
-    const r = inserted[0];
-    return res.status(201).json({ id: r.code, name: r.name, capacity: r.capacity, shift: r.shift });
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { name, capacity, shift, code } = req.body || {};
+    
+    // Validação básica
+    if (!name) {
+      return res.status(400).json({ 
+        error: "validation_error",
+        message: "Nome da turma é obrigatório"
+      });
+    }
+    
+    const genCode = String(code || (name || "").toString().trim().toUpperCase().replace(/\s+/g, "_"));
+    
+    if (db) {
+      const inserted = await db.insert(classesTable).values({ 
+        code: genCode, 
+        name: String(name||genCode), 
+        capacity: Number(capacity||0), 
+        shift: String(shift||"manha") 
+      }).returning();
+      const r = inserted[0];
+      
+      console.log("✅ POST /api/secretary/classes - Turma criada:", r.code);
+      return res.status(201).json({ id: r.code, name: r.name, capacity: r.capacity, shift: r.shift });
+    }
+    
+    const id = genCode;
+    const c = { 
+      id, 
+      name: String(name||genCode), 
+      capacity: Number(capacity||0), 
+      shift: String(shift||"manha") 
+    };
+    secClasses.push(c);
+    
+    console.log("✅ POST /api/secretary/classes - Turma criada (demo):", id);
+    res.status(201).json(c);
+  } catch (error: any) {
+    console.error("❌ Erro ao criar turma:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao criar turma", 
+      message: error?.message || "Erro interno do servidor"
+    });
   }
-  const id = genCode;
-  const c = { id, name: String(name||genCode), capacity: Number(capacity||0), shift: String(shift||"manha") };
-  secClasses.push(c);
-  res.status(201).json(c);
 });
 
 app.patch("/api/secretary/classes/:id", async (req, res) => {
@@ -707,17 +787,58 @@ app.get("/api/secretary/subjects", (req, res) => {
   res.json(secSubjects);
 });
 
+// POST /api/secretary/subjects - Criar disciplina (CORRIGIDA)
 app.post("/api/secretary/subjects", async (req, res) => {
-  const { code, name, workload } = req.body || {};
-  const finalCode = String(code || (name || "").toString().trim().toUpperCase().slice(0,8).replace(/\s+/g, "_"));
-  if (db) {
-    const inserted = await db.insert(subjectsTable).values({ code: finalCode, name: String(name||finalCode), workload: Number(workload||0) }).returning();
-    const r = inserted[0];
-    return res.status(201).json({ id: r.code, code: r.code, name: r.name, workload: r.workload });
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { code, name, workload } = req.body || {};
+    
+    // Validação básica
+    if (!name && !code) {
+      return res.status(400).json({ 
+        error: "validation_error",
+        message: "Nome ou código da disciplina é obrigatório"
+      });
+    }
+    
+    const finalCode = String(code || (name || "").toString().trim().toUpperCase().slice(0,8).replace(/\s+/g, "_"));
+    
+    if (db) {
+      const inserted = await db.insert(subjectsTable).values({ 
+        code: finalCode, 
+        name: String(name||finalCode), 
+        workload: Number(workload||0) 
+      }).returning();
+      const r = inserted[0];
+      
+      console.log("✅ POST /api/secretary/subjects - Disciplina criada:", r.code);
+      return res.status(201).json({ id: r.code, code: r.code, name: r.name, workload: r.workload });
+    }
+    
+    const s = { 
+      id: finalCode, 
+      code: finalCode, 
+      name: String(name||finalCode), 
+      workload: Number(workload||0) 
+    };
+    secSubjects.push(s);
+    
+    console.log("✅ POST /api/secretary/subjects - Disciplina criada (demo):", finalCode);
+    res.status(201).json(s);
+  } catch (error: any) {
+    console.error("❌ Erro ao criar disciplina:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao criar disciplina", 
+      message: error?.message || "Erro interno do servidor"
+    });
   }
-  const s = { id: finalCode, code: finalCode, name: String(name||finalCode), workload: Number(workload||0) };
-  secSubjects.push(s);
-  res.status(201).json(s);
 });
 
 app.patch("/api/secretary/subjects/:id", async (req, res) => {
@@ -860,24 +981,89 @@ app.get("/api/secretary/class-subjects", (req, res) => {
   res.json((classSubjects as any)[classId] || []);
 });
 
+// POST /api/secretary/class-subjects - Associar disciplina à turma (CORRIGIDA)
 app.post("/api/secretary/class-subjects", (req, res) => {
-  const { classId, subjectId } = req.body;
-  classSubjects[classId] = classSubjects[classId] || [];
-  if (!classSubjects[classId].includes(subjectId)) classSubjects[classId].push(subjectId);
-  res.status(201).json({ classId, subjects: classSubjects[classId] });
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { classId, subjectId } = req.body || {};
+    
+    // Validação básica
+    if (!classId || !subjectId) {
+      return res.status(400).json({ 
+        error: "validation_error",
+        message: "classId e subjectId são obrigatórios"
+      });
+    }
+    
+    classSubjects[classId] = classSubjects[classId] || [];
+    if (!classSubjects[classId].includes(subjectId)) {
+      classSubjects[classId].push(subjectId);
+    }
+    
+    console.log("✅ POST /api/secretary/class-subjects - Disciplina associada à turma");
+    res.status(201).json({ classId, subjects: classSubjects[classId] });
+  } catch (error: any) {
+    console.error("❌ Erro ao associar disciplina:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao associar disciplina", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
+// POST /api/secretary/enrollments - Matricular aluno (CORRIGIDA)
 app.post("/api/secretary/enrollments", (req, res) => {
-  const { studentId, classId, enrollmentDate } = req.body;
-  const subjects = classSubjects[classId] || [];
-  const created: any[] = [];
-  subjects.forEach(sub => {
-    const id = `enr-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-    const e = { id, studentId, classId, subjectId: sub, enrollmentDate: enrollmentDate || new Date().toISOString().slice(0,10) };
-    secEnrollments.push(e);
-    created.push(e);
-  });
-  res.status(201).json(created);
+  try {
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { studentId, classId, enrollmentDate } = req.body || {};
+    
+    // Validação básica
+    if (!studentId || !classId) {
+      return res.status(400).json({ 
+        error: "validation_error",
+        message: "studentId e classId são obrigatórios"
+      });
+    }
+    
+    const subjects = classSubjects[classId] || [];
+    const created: any[] = [];
+    
+    subjects.forEach(sub => {
+      const id = `enr-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const e = { 
+        id, 
+        studentId: String(studentId), 
+        classId: String(classId), 
+        subjectId: sub, 
+        enrollmentDate: enrollmentDate || new Date().toISOString().slice(0,10) 
+      };
+      secEnrollments.push(e);
+      created.push(e);
+    });
+    
+    console.log("✅ POST /api/secretary/enrollments - Aluno matriculado em", created.length, "disciplinas");
+    res.status(201).json(created);
+  } catch (error: any) {
+    console.error("❌ Erro ao matricular aluno:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "Erro ao matricular aluno", 
+      message: error?.message || "Erro interno do servidor"
+    });
+  }
 });
 
 app.get("/api/secretary/enrollments", (req, res) => {

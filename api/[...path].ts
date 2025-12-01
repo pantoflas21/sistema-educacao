@@ -1,170 +1,70 @@
-// Serverless Function para Vercel - captura todas as rotas /api/*
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+// api/[...path].ts
 
-// Importar o app Express do backend (arquivo api.ts sem servir arquivos estáticos)
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import app from "../apps/backend/src/api";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // SEMPRE garantir headers CORS e JSON primeiro
+  // Headers CORS globais
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  
-  // Handler para OPTIONS (CORS preflight)
+
+  // Resposta para preflight OPTIONS
   if (req.method === "OPTIONS") {
-    return res.status(200).json({ ok: true });
+    return res.status(200).end();
   }
-  
-  // Converter Vercel request/response para Express
-  // Wrapper para garantir que SEMPRE retorne JSON, nunca HTML
-  return new Promise((resolve) => {
-    let responseSent = false;
-    
-    // Parse body se necessário (Vercel pode enviar como string)
-    let parsedBody = req.body;
-    if (typeof req.body === 'string' && req.headers['content-type']?.includes('application/json')) {
+
+  try {
+    // Converter body JSON se necessário
+    let parsedBody: any = req.body;
+    if (typeof req.body === "string" && req.headers["content-type"]?.includes("application/json")) {
       try {
         parsedBody = JSON.parse(req.body);
-      } catch (e) {
-        console.error("❌ Erro ao fazer parse do body JSON:", e);
+      } catch {
         parsedBody = req.body;
       }
     }
-    
-    // Criar objetos compatíveis com Express
-    const expressReq = {
+
+    // Criar objeto Express compatível
+    const expressReq: any = {
       method: req.method,
       url: req.url,
       path: req.url?.split("?")[0] || "/",
       query: req.query,
       body: parsedBody,
       headers: req.headers,
-      get: (name: string) => {
-        const lower = name.toLowerCase();
-        return req.headers[lower] || req.headers[name];
-      },
-      header: (name: string) => {
-        const lower = name.toLowerCase();
-        return req.headers[lower] || req.headers[name];
-      },
-    } as any;
-    
-    const expressRes = {
+      get: (name: string) => req.headers[name.toLowerCase()] || req.headers[name],
+    };
+
+    const expressRes: any = {
       statusCode: 200,
-      _headers: {} as Record<string, string>,
-      status: function(code: number) {
-        this.statusCode = code;
-        if (!responseSent) res.status(code);
-        return this;
+      status(code: number) { this.statusCode = code; return this; },
+      json(data: any) {
+        res.setHeader("Content-Type", "application/json");
+        res.status(this.statusCode).json(data);
       },
-      json: function(data: any) {
-        if (responseSent) return this;
-        responseSent = true;
-        res.setHeader("Content-Type", "application/json; charset=utf-8");
-        res.status(this.statusCode || 200).json(data);
-        resolve(undefined);
-        return this;
+      send(data: any) {
+        res.setHeader("Content-Type", typeof data === "string" ? "text/plain" : "application/json");
+        res.status(this.statusCode).send(data);
       },
-      send: function(data: any) {
-        if (responseSent) return this;
-        responseSent = true;
-        // Sempre garantir JSON
-        res.setHeader("Content-Type", "application/json; charset=utf-8");
-        if (typeof data === "string") {
-          try {
-            // Tentar parsear se for JSON string
-            const parsed = JSON.parse(data);
-            res.status(this.statusCode || 200).json(parsed);
-          } catch {
-            // Se não for JSON, retornar como erro JSON
-            res.status(this.statusCode || 200).json({ error: data });
-          }
-        } else {
-          res.status(this.statusCode || 200).json(data);
+      end(data?: any) { res.status(this.statusCode).end(data); },
+      setHeader(name: string, value: string) { res.setHeader(name, value); },
+    };
+
+    // Encapsular o Express em Promise
+    await new Promise<void>((resolve) => {
+      app(expressReq, expressRes, () => {
+        // Se a rota não existir, retorna 404 JSON
+        if (!res.writableEnded) {
+          res.status(404).json({ error: "Rota não encontrada", path: req.url });
         }
-        resolve(undefined);
-        return this;
-      },
-      setHeader: function(name: string, value: string) {
-        this._headers[name] = value;
-        if (!responseSent) res.setHeader(name, value);
-        return this;
-      },
-      end: function(data?: any) {
-        if (responseSent) return this;
-        responseSent = true;
-        res.setHeader("Content-Type", "application/json; charset=utf-8");
-        if (data) {
-          res.status(this.statusCode || 200).json({ message: data });
-        } else {
-          res.status(this.statusCode || 200).json({ ok: true });
-        }
-        resolve(undefined);
-        return this;
-      },
-    } as any;
-    
-    // Chamar app Express com timeout de segurança
-    const timeout = setTimeout(() => {
-      if (!responseSent) {
-        responseSent = true;
-        console.error("❌ Timeout ao processar requisição:", req.method, req.url);
-        res.status(504).json({ 
-          error: "Timeout", 
-          message: "A requisição demorou muito para processar",
-          path: req.url 
-        });
-        resolve(undefined);
-      }
-    }, 30000); // 30 segundos
-    
-    try {
-      // Chamar app Express - precisa ser tratado como middleware
-      const next = (err?: any) => {
-        clearTimeout(timeout);
-        if (err) {
-          if (!responseSent) {
-            responseSent = true;
-            console.error("❌ Erro no Express:", err);
-            res.status(500).json({ 
-              error: "Erro interno do servidor", 
-              message: err?.message || "Erro desconhecido",
-              path: req.url 
-            });
-            resolve(undefined);
-          }
-          return;
-        }
-        // Se chegou aqui sem resposta (404), retornar JSON de erro
-        if (!responseSent) {
-          responseSent = true;
-          console.warn("⚠️ Rota não encontrada:", req.method, req.url);
-          res.status(404).json({ 
-            error: "Rota não encontrada", 
-            method: req.method,
-            path: req.url 
-          });
-          resolve(undefined);
-        }
-      };
-      
-      // Chamar app Express como função
-      app(expressReq, expressRes, next);
-    } catch (error: any) {
-      clearTimeout(timeout);
-      if (!responseSent) {
-        responseSent = true;
-        console.error("❌ Erro ao processar requisição:", error);
-        res.status(500).json({ 
-          error: "Erro interno do servidor", 
-          message: error?.message || "Erro desconhecido",
-          path: req.url 
-        });
-        resolve(undefined);
-      }
-    }
-  });
+        resolve();
+      });
+    });
+
+  } catch (err: any) {
+    console.error("Erro no handler Vercel:", err);
+    // Retorno JSON sempre, nunca HTML
+    res.status(500).json({ error: err.message || "Erro interno do servidor" });
+  }
 }
-
-

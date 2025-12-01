@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
-import { loginLocal, saveAuth } from "../lib/authLocal";
+import { loginLocal, saveAuth, isAuthenticated, getAuthUser } from "../lib/authLocal";
 
 type LoginConfig = {
   logoUrl?: string;
@@ -14,7 +14,7 @@ type LoginConfig = {
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,6 +22,26 @@ export default function LoginPage() {
   const [showLogoUpload, setShowLogoUpload] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewLogo, setPreviewLogo] = useState<string | null>(null);
+  
+  // Verificar se já está autenticado - se sim, redirecionar
+  useEffect(() => {
+    if (isAuthenticated()) {
+      const authUser = getAuthUser();
+      if (authUser) {
+        // Redirecionar baseado no role
+        const roleRoutes: Record<string, string> = {
+          Admin: '/admin',
+          Teacher: '/teacher',
+          Student: '/student',
+          Secretary: '/secretary',
+          Treasury: '/treasury',
+          EducationSecretary: '/education-secretary',
+        };
+        const redirectTo = roleRoutes[authUser.role] || '/';
+        setLocation(redirectTo);
+      }
+    }
+  }, [setLocation]);
 
   // Carregar configuração da escola
   const { data: config } = useQuery<LoginConfig>({

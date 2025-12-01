@@ -378,6 +378,27 @@ export function getAuthToken(): string | null {
  * Verifica se está autenticado
  */
 export function isAuthenticated(): boolean {
-  return !!getAuthUser() && !!getAuthToken();
+  try {
+    const user = getAuthUser();
+    const token = getAuthToken();
+    
+    // Se não tem usuário ou token, não está autenticado
+    if (!user || !token) {
+      return false;
+    }
+    
+    // Validar que o usuário tem os campos obrigatórios
+    if (!user.email || !user.role) {
+      // Dados inválidos - limpar
+      clearAuth();
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    // Se houver erro ao verificar, limpar e retornar false
+    clearAuth();
+    return false;
+  }
 }
 

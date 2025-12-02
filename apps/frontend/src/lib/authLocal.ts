@@ -206,7 +206,7 @@ async function tryLoginViaAPI(email: string, password: string): Promise<{ user: 
   try {
     // Criar AbortController para timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos de timeout (otimizado)
 
     try {
       const response = await fetch('/api/login', {

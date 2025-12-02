@@ -6,18 +6,29 @@ import app from "../apps/backend/src/api";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Log da requisição para debug
   console.log(`🔍 Handler Vercel: ${req.method} ${req.url}`);
-  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
-  console.log(`📦 Body:`, typeof req.body, req.body);
   
-  // Headers CORS globais
+  // Headers CORS globais - SEMPRE definir antes de qualquer resposta
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Max-Age", "86400"); // Cache preflight por 24h
 
-  // Resposta para preflight OPTIONS
+  // Resposta para preflight OPTIONS - DEVE ser a primeira coisa
   if (req.method === "OPTIONS") {
     console.log("✅ OPTIONS request - retornando 200");
     return res.status(200).end();
+  }
+
+  // Garantir que método HTTP é válido
+  const method = (req.method || "GET").toUpperCase();
+  const validMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+  if (!validMethods.includes(method)) {
+    console.error(`❌ Método HTTP inválido: ${method}`);
+    return res.status(405).json({ 
+      error: "Method Not Allowed", 
+      message: `Método ${method} não é permitido`,
+      allowed: validMethods
+    });
   }
 
   try {
@@ -32,11 +43,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Criar objeto Express compatível
-    const method = (req.method || "GET").toUpperCase();
     const url = req.url || "/";
     // As rotas do Express já começam com /api/, então mantemos o path completo
     // Quando a Vercel usa [...path].ts, req.url já inclui /api/...
     let path = url.split("?")[0] || "/";
+    
+    // Garantir que path começa com /api/
+    if (!path.startsWith("/api/")) {
+      path = `/api${path}`;
+    }
     
     console.log(`🔍 Criando Express Req: ${method} ${path} (url: ${url})`);
     
@@ -140,8 +155,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       
       console.log(`🚀 Chamando Express app: ${method} ${path}`);
+      
       // Chamar o Express corretamente
-      app(expressReq, expressRes, next);
+      // O Express app pode ser usado como handler diretamente
+      try {
+        app(expressReq, expressRes, next);
+      } catch (expressError: any) {
+        console.error("❌ Erro ao chamar Express:", expressError);
+        if (!responseHandled) {
+          responseHandled = true;
+          clearTimeout(timeoutId);
+          res.status(500).json({ 
+            error: "Erro ao processar requisição", 
+            message: expressError?.message || "Erro interno do servidor"
+          });
+        }
+        resolve();
+        return;
+      }
       
       // Se a resposta já foi enviada, limpar timeout
       if (res.writableEnded) {

@@ -1,15 +1,33 @@
 import { verifyToken } from "../auth/jwt";
 import { env } from "../config/env";
 
-export function authMiddleware(req: any, _res: any, next: any) {
+export function authMiddleware(req: any, res: any, next: any) {
+  // Garantir headers CORS mesmo no middleware
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  
   const hdr = req.headers["authorization"] || "";
   const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
   
-  if (env.AUTH_DEMO && !token) {
-    req.user = { sub: "demo-admin", role: "Admin", email: "admin@example.com" };
+  // Em modo demo, sempre permitir acesso (não bloquear requisições)
+  if (env.AUTH_DEMO) {
+    if (!token) {
+      // Criar usuário demo baseado no email se disponível
+      req.user = { sub: "demo-admin", role: "Admin", email: "admin@example.com" };
+    } else {
+      // Se tem token, tentar verificar, mas não bloquear se inválido em modo demo
+      const payload = verifyToken(token);
+      if (payload) {
+        req.user = payload;
+      } else {
+        req.user = { sub: "demo-admin", role: "Admin", email: "admin@example.com" };
+      }
+    }
     return next();
   }
   
+  // Modo produção: verificar token
   if (token) {
     const payload = verifyToken(token);
     if (payload) { 
@@ -18,6 +36,8 @@ export function authMiddleware(req: any, _res: any, next: any) {
     }
   }
   
+  // Em produção sem token, definir user como null mas não bloquear
+  // Deixar as rotas específicas decidirem se precisam de autenticação
   req.user = null;
   next();
 }

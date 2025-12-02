@@ -1,0 +1,8 @@
+# COMANDOS RÁPIDOS - COPIE E COLE NO TERMINAL
+
+git add apps/frontend/src/lib/authLocal.ts api/[...path].ts apps/backend/src/middleware/auth.ts PANORAMA_GERAL_SISTEMA_ATUALIZADO.md
+
+git commit -m "FIX: Corrige login lento e erro 405 em formulários - Adiciona timeout de 3s no login - Melhora handler do Vercel - Ajusta middleware de autenticação - Garante headers CORS em todas as rotas POST"
+
+git push -u origin main
+

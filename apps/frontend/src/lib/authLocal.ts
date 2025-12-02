@@ -200,74 +200,121 @@ function detectRoleFromEmail(email: string): User | null {
 /**
  * Tenta fazer login via API do backend
  * Retorna null se API não estiver disponível (para fallback)
+ * TIMEOUT: 3 segundos para não demorar muito
  */
 async function tryLoginViaAPI(email: string, password: string): Promise<{ user: User; token: string } | null> {
   try {
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    // Criar AbortController para timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos de timeout
 
-    // Se API não estiver disponível ou erro de rede, retornar null para usar fallback
-    if (!response.ok) {
-      // Se erro 401, é credencial inválida (API está funcionando mas senha errada)
-      if (response.status === 401) {
-        const errorData = await response.json().catch(() => ({ error: 'invalid_credentials' }));
-        throw new Error(errorData.message || 'Email ou senha inválidos');
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Se API não estiver disponível ou erro de rede, retornar null para usar fallback
+      if (!response.ok) {
+        // Se erro 401, é credencial inválida (API está funcionando mas senha errada)
+        if (response.status === 401) {
+          const errorData = await response.json().catch(() => ({ error: 'invalid_credentials' }));
+          throw new Error(errorData.message || 'Email ou senha inválidos');
+        }
+        // Outros erros: API pode não estar disponível, usar fallback
+        return null;
       }
-      // Outros erros: API pode não estar disponível, usar fallback
+
+      const data = await response.json();
+      
+      // API retornou token e role
+      if (data.token && data.role) {
+        // Buscar dados completos do usuário (com timeout também)
+        try {
+          const userController = new AbortController();
+          const userTimeoutId = setTimeout(() => userController.abort(), 2000); // 2 segundos para buscar usuário
+
+          try {
+            const userResponse = await fetch('/api/auth/user', {
+              headers: {
+                'Authorization': `Bearer ${data.token}`,
+              },
+              signal: userController.signal,
+            });
+
+            clearTimeout(userTimeoutId);
+
+            let userData: any = null;
+            if (userResponse.ok) {
+              userData = await userResponse.json();
+            }
+
+            // Montar objeto User completo com dados do backend
+            const user: User = {
+              id: String(userData?.id || email),
+              email: userData?.email || email.toLowerCase().trim(),
+              firstName: userData?.firstName || null,
+              lastName: userData?.lastName || null,
+              role: userData?.role || data.role,
+              schoolId: userData?.schoolId || null,
+              profileImageUrl: userData?.profileImageUrl || null,
+            };
+
+            return { user, token: data.token };
+          } catch (userError: any) {
+            clearTimeout(userTimeoutId);
+            // Se não conseguir buscar dados completos, criar user básico com role
+            // Isso mantém o sistema funcionando mesmo se /api/auth/user falhar
+            const user: User = {
+              id: email.toLowerCase().trim(),
+              email: email.toLowerCase().trim(),
+              firstName: null,
+              lastName: null,
+              role: data.role,
+              schoolId: null,
+              profileImageUrl: null,
+            };
+            return { user, token: data.token };
+          }
+        } catch (userError: any) {
+          // Se timeout ou erro ao buscar usuário, criar user básico
+          const user: User = {
+            id: email.toLowerCase().trim(),
+            email: email.toLowerCase().trim(),
+            firstName: null,
+            lastName: null,
+            role: data.role,
+            schoolId: null,
+            profileImageUrl: null,
+          };
+          return { user, token: data.token };
+        }
+      }
+
+      return null;
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // Se foi timeout ou abort, usar fallback local
+      if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+        console.warn('⏱️ Timeout ao tentar login via API, usando fallback local');
+        return null;
+      }
+      
+      // Se erro foi lançado explicitamente (como credencial inválida), propagar
+      if (fetchError.message && fetchError.message.includes('inválid')) {
+        throw fetchError;
+      }
+      
+      // Outros erros: usar fallback
       return null;
     }
-
-    const data = await response.json();
-    
-    // API retornou token e role
-    if (data.token && data.role) {
-      // Buscar dados completos do usuário
-      try {
-        const userResponse = await fetch('/api/auth/user', {
-          headers: {
-            'Authorization': `Bearer ${data.token}`,
-          },
-        });
-
-        let userData: any = null;
-        if (userResponse.ok) {
-          userData = await userResponse.json();
-        }
-
-        // Montar objeto User completo com dados do backend
-        const user: User = {
-          id: String(userData?.id || email),
-          email: userData?.email || email.toLowerCase().trim(),
-          firstName: userData?.firstName || null,
-          lastName: userData?.lastName || null,
-          role: userData?.role || data.role,
-          schoolId: userData?.schoolId || null,
-          profileImageUrl: userData?.profileImageUrl || null,
-        };
-
-        return { user, token: data.token };
-      } catch (userError) {
-        // Se não conseguir buscar dados completos, criar user básico com role
-        // Isso mantém o sistema funcionando mesmo se /api/auth/user falhar
-        const user: User = {
-          id: email.toLowerCase().trim(),
-          email: email.toLowerCase().trim(),
-          firstName: null,
-          lastName: null,
-          role: data.role,
-          schoolId: null,
-          profileImageUrl: null,
-        };
-        return { user, token: data.token };
-      }
-    }
-
-    return null;
   } catch (error: any) {
     // Se erro de rede ou API indisponível, retornar null para usar fallback local
     // Mas se erro foi lançado explicitamente (como credencial inválida), propagar

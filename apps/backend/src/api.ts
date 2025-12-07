@@ -2241,5 +2241,6 @@ app.use((req: any, res: any) => {
 });
 
 export default app;
+export { app }; // Export nomeado como fallback
 
 

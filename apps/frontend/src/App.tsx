@@ -1,4 +1,6 @@
 import { Route, Switch } from "wouter";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -34,6 +36,44 @@ import SecretaryLessonPlans from "./pages/secretary/SecretaryLessonPlans";
 import DesignReview from "./pages/DesignReview";
 import TestSupabase from "./pages/TestSupabase";
 import LoginPage from "./pages/LoginPage";
+import { isAuthenticated, getAuthUser } from "./lib/authLocal";
+
+// Componente para rota raiz que redireciona baseado em autenticação
+function RootRoute() {
+  const [, setLocation] = useLocation();
+  
+  useEffect(() => {
+    const isAuth = isAuthenticated();
+    
+    if (!isAuth) {
+      // Não autenticado - redirecionar para login
+      setLocation('/login');
+    } else {
+      // Autenticado - redirecionar para dashboard baseado no role
+      const user = getAuthUser();
+      const roleRoutes: Record<string, string> = {
+        Admin: '/admin',
+        Teacher: '/teacher',
+        Student: '/student',
+        Secretary: '/secretary',
+        Treasury: '/treasury',
+        EducationSecretary: '/education-secretary',
+      };
+      const redirectTo = roleRoutes[user?.role || ''] || '/admin';
+      setLocation(redirectTo);
+    }
+  }, [setLocation]);
+  
+  // Mostrar loading enquanto redireciona
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <p className="mt-4 text-slate-600">Carregando...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -43,11 +83,9 @@ export default function App() {
         <Route path="/login" component={LoginPage} />
         <Route path="/test-supabase" component={TestSupabase} />
         
-        {/* Rotas protegidas */}
+        {/* Rota raiz: redireciona baseado em autenticação */}
         <Route path="/">
-          <ProtectedRoute>
-            <HierarchyDashboard />
-          </ProtectedRoute>
+          <RootRoute />
         </Route>
         
         <Route path="/review">

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
-import { loginLocal, saveAuth, isAuthenticated, getAuthUser } from "../lib/authLocal";
+import { loginLocal, saveAuth, isAuthenticated, getAuthUser, clearAuth } from "../lib/authLocal";
 
 type LoginConfig = {
   logoUrl?: string;
@@ -107,6 +107,12 @@ export default function LoginPage() {
       alert("Configuração salva com sucesso!");
     }
   });
+
+  useEffect(() => {
+    // Limpar autenticação antiga ao entrar na página de login
+    clearAuth();
+    console.log("🧹 [LOGIN] Autenticação antiga limpa");
+  }, []);
 
   useEffect(() => {
     if (logoFile) {

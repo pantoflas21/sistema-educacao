@@ -4,14 +4,29 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 // Importar o app Express usando require para compatibilidade CommonJS
+// ESTRATÉGIA: Tentar arquivo compilado primeiro (produção), depois TypeScript (fallback)
 let app: any;
+
+// Tentativa 1: Importar backend compilado (produção - Vercel)
 try {
-  // Usar require em vez de import para máxima compatibilidade com Serverless Functions
-  app = require("../apps/backend/src/api").default;
-  console.log("✅ [VERCEL] App Express importado com sucesso");
-} catch (error: any) {
-  console.error("❌ [VERCEL] Erro ao importar app Express:", error);
-  console.error("❌ [VERCEL] Stack:", error?.stack);
+  app = require("../apps/backend/dist/api").default;
+  console.log("✅ [VERCEL] Backend compilado importado com sucesso (dist/api.js)");
+} catch (error1: any) {
+  console.warn("⚠️ [VERCEL] Tentativa 1 falhou (dist/api.js não encontrado)");
+  console.warn("⚠️ [VERCEL] Erro:", error1.message);
+  
+  // Tentativa 2: Importar arquivo TypeScript (desenvolvimento/fallback)
+  try {
+    app = require("../apps/backend/src/api").default;
+    console.log("✅ [VERCEL] Backend TypeScript importado (modo dev/fallback)");
+  } catch (error2: any) {
+    console.error("❌ [VERCEL] Ambas tentativas de importação falharam!");
+    console.error("❌ [VERCEL] Erro Tentativa 1 (dist):", error1.message);
+    console.error("❌ [VERCEL] Erro Tentativa 2 (src):", error2.message);
+    console.error("❌ [VERCEL] Stack 1:", error1?.stack);
+    console.error("❌ [VERCEL] Stack 2:", error2?.stack);
+    // app permanece undefined - será tratado no handler
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

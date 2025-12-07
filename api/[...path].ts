@@ -1,6 +1,6 @@
 // api/[...path].ts
 // Handler direto para todas as rotas /api/* na Vercel
-// SOLUÇÃO DEFINITIVA: Sem serverless-http, rotas diretas
+// SOLUÇÃO DEFINITIVA: Router direto sem dependências
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
@@ -63,13 +63,50 @@ function setJsonHeaders(res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
-// Router simples
-function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
+// Função para obter o path correto
+function getPath(req: VercelRequest): string {
+  // Na Vercel com [...path], o path pode vir de várias formas
+  let path = "";
+  
+  // Forma 1: req.query.path (array do catch-all)
+  if (req.query.path) {
+    const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
+    path = `/api/${pathArray.join('/')}`;
+  }
+  // Forma 2: req.url
+  else if (req.url) {
+    path = req.url;
+  }
+  // Forma 3: construir do path do catch-all
+  else {
+    path = "/api/";
+  }
+  
+  // Limpar query string do path
+  if (path.includes('?')) {
+    path = path.split('?')[0];
+  }
+  
+  // Garantir que começa com /api/
+  if (!path.startsWith('/api/')) {
+    if (path === '/') {
+      path = '/api/';
+    } else {
+      path = `/api${path}`;
+    }
+  }
+  
+  return path;
+}
+
+// Exportar handler para Vercel
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const method = req.method || "GET";
+  const path = getPath(req);
   
   console.log(`🚀 [VERCEL] ${method} ${path}`);
-  console.log(`🔍 [VERCEL] req.query:`, JSON.stringify(req.query));
   console.log(`🔍 [VERCEL] req.url:`, req.url);
+  console.log(`🔍 [VERCEL] req.query:`, JSON.stringify(req.query));
   
   // CORS Preflight
   if (method === "OPTIONS") {
@@ -78,24 +115,25 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   }
   
   // Health check
-  if (path === "/api/health" && method === "GET") {
+  if (path === "/api/health" || path.startsWith("/api/health")) {
     setJsonHeaders(res);
     return res.json({ ok: true, uptime: process.uptime() });
   }
   
   // Test
-  if (path === "/api/test" && method === "GET") {
+  if (path === "/api/test" || path.startsWith("/api/test")) {
     setJsonHeaders(res);
     return res.json({ 
       ok: true, 
       authDemo: process.env.AUTH_DEMO || "false",
       message: "API funcionando corretamente",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      path
     });
   }
   
   // Login
-  if (path === "/api/login" && method === "POST") {
+  if ((path === "/api/login" || path.startsWith("/api/login")) && method === "POST") {
     try {
       setJsonHeaders(res);
       const { email, password } = req.body || {};
@@ -135,8 +173,9 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   }
   
   // Statistics
-  if (path === "/api/statistics/overview" && method === "GET") {
+  if ((path === "/api/statistics/overview" || path.startsWith("/api/statistics/overview")) && method === "GET") {
     setJsonHeaders(res);
+    console.log("✅ GET /api/statistics/overview");
     return res.json({ 
       systemHealth: 98, 
       activeUsers: 120, 
@@ -149,13 +188,13 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   }
   
   // Admin Users
-  if (path === "/api/admin/users" && method === "GET") {
+  if ((path === "/api/admin/users" || path.startsWith("/api/admin/users")) && method === "GET") {
     setJsonHeaders(res);
     console.log("✅ GET /api/admin/users - Retornando", adminUsers.length, "usuários");
     return res.json(adminUsers);
   }
   
-  if (path === "/api/admin/users" && method === "POST") {
+  if ((path === "/api/admin/users" || path.startsWith("/api/admin/users")) && method === "POST") {
     try {
       setJsonHeaders(res);
       const { email, password, role, firstName, lastName } = req.body || {};
@@ -198,13 +237,13 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   }
   
   // Secretary Students
-  if (path === "/api/secretary/students" && method === "GET") {
+  if ((path === "/api/secretary/students" || path.startsWith("/api/secretary/students")) && method === "GET") {
     setJsonHeaders(res);
     console.log("✅ GET /api/secretary/students - Retornando", secStudents.length, "alunos");
     return res.json(secStudents);
   }
   
-  if (path === "/api/secretary/students" && method === "POST") {
+  if ((path === "/api/secretary/students" || path.startsWith("/api/secretary/students")) && method === "POST") {
     try {
       setJsonHeaders(res);
       const { name, cpf, rg, birthDate, classId, matricula } = req.body || {};
@@ -240,13 +279,13 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   }
   
   // Secretary Classes
-  if (path === "/api/secretary/classes" && method === "GET") {
+  if ((path === "/api/secretary/classes" || path.startsWith("/api/secretary/classes")) && method === "GET") {
     setJsonHeaders(res);
     console.log("✅ GET /api/secretary/classes - Retornando", secClasses.length, "turmas");
     return res.json(secClasses);
   }
   
-  if (path === "/api/secretary/classes" && method === "POST") {
+  if ((path === "/api/secretary/classes" || path.startsWith("/api/secretary/classes")) && method === "POST") {
     try {
       setJsonHeaders(res);
       const { name, capacity, shift, code } = req.body || {};
@@ -278,51 +317,47 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
     }
   }
   
-  // Teacher Terms
-  if (path === "/api/teacher/terms" && method === "GET") {
+  // Teacher Routes
+  if ((path === "/api/teacher/terms" || path.startsWith("/api/teacher/terms")) && method === "GET") {
     setJsonHeaders(res);
-    console.log("✅ GET /api/teacher/terms - Retornando", demoData.terms.length, "bimestres");
+    console.log("✅ GET /api/teacher/terms");
     return res.json(demoData.terms);
   }
   
-  // Teacher Classes
-  if (path.startsWith("/api/teacher/classes") && method === "GET") {
+  if ((path === "/api/teacher/classes" || path.startsWith("/api/teacher/classes")) && method === "GET") {
     setJsonHeaders(res);
     const termId = String(req.query.termId || "");
     const classes = demoData.classes.map(c => ({ ...c, termId }));
-    console.log("✅ GET /api/teacher/classes - Retornando", classes.length, "turmas");
+    console.log("✅ GET /api/teacher/classes");
     return res.json(classes);
   }
   
-  // Teacher Subjects
-  if (path.startsWith("/api/teacher/subjects") && method === "GET") {
+  if ((path === "/api/teacher/subjects" || path.startsWith("/api/teacher/subjects")) && method === "GET") {
     setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const list = (demoData.subjectsByClass as any)[classId] || [];
-    console.log("✅ GET /api/teacher/subjects - Retornando", list.length, "disciplinas");
+    console.log("✅ GET /api/teacher/subjects");
     return res.json(list);
   }
   
-  // Teacher Students
-  if (path.startsWith("/api/teacher/students") && method === "GET") {
+  if ((path === "/api/teacher/students" || path.startsWith("/api/teacher/students")) && method === "GET") {
     setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const list = (demoData.studentsByClass as any)[classId] || [];
-    console.log("✅ GET /api/teacher/students - Retornando", list.length, "alunos");
+    console.log("✅ GET /api/teacher/students");
     return res.json(list);
   }
   
-  // Teacher Lessons
-  if (path.startsWith("/api/teacher/lessons") && method === "GET") {
+  if ((path === "/api/teacher/lessons" || path.startsWith("/api/teacher/lessons")) && method === "GET") {
     setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
     const filtered = lessons.filter((l: any) => l.classId === classId && l.subjectId === subjectId);
-    console.log("✅ GET /api/teacher/lessons - Retornando", filtered.length, "aulas");
+    console.log("✅ GET /api/teacher/lessons");
     return res.json(filtered);
   }
   
-  if (path === "/api/teacher/lessons" && method === "POST") {
+  if ((path === "/api/teacher/lessons" || path.startsWith("/api/teacher/lessons")) && method === "POST") {
     try {
       setJsonHeaders(res);
       const { classId, subjectId, title, content, lessonDate } = req.body || {};
@@ -356,8 +391,7 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
     }
   }
   
-  // Teacher Grades Grid
-  if (path.startsWith("/api/teacher/grades/grid") && method === "GET") {
+  if ((path === "/api/teacher/grades/grid" || path.startsWith("/api/teacher/grades/grid")) && method === "GET") {
     setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
@@ -368,12 +402,11 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
       const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
       return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
     });
-    console.log("✅ GET /api/teacher/grades/grid - Retornando", grid.length, "notas");
+    console.log("✅ GET /api/teacher/grades/grid");
     return res.json(grid);
   }
   
-  // Teacher Grades Update
-  if (path === "/api/teacher/grades" && method === "PUT") {
+  if ((path === "/api/teacher/grades" || path.startsWith("/api/teacher/grades")) && method === "PUT") {
     try {
       setJsonHeaders(res);
       const { classId, studentId, n1, n2, n3, n4, subjectId } = req.body;
@@ -396,7 +429,7 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
       const key = `${classId}:${studentId}`;
       grades[key] = { n1: cleanN1, n2: cleanN2, n3: cleanN3, n4: cleanN4 };
       
-      console.log("✅ PUT /api/teacher/grades - Notas atualizadas");
+      console.log("✅ PUT /api/teacher/grades");
       return res.json({ studentId, classId, subjectId, n1: cleanN1, n2: cleanN2, n3: cleanN3, n4: cleanN4, average });
     } catch (error: any) {
       setJsonHeaders(res);
@@ -406,50 +439,12 @@ function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
   
   // Rota não encontrada
   setJsonHeaders(res);
-  console.log("❌ Rota não encontrada:", method, path);
+  console.log(`❌ [VERCEL] Rota não encontrada: ${method} ${path}`);
   return res.status(404).json({ 
     error: "Rota não encontrada", 
     path,
-    method
+    method,
+    query: req.query,
+    url: req.url
   });
-}
-
-// Exportar handler para Vercel
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    // Na Vercel, o [...path] captura tudo após /api/ em req.query.path (array)
-    let path = "/api/";
-    
-    // Tentar diferentes formas de obter o path
-    if (req.query.path) {
-      // Forma 1: req.query.path (array do catch-all)
-      const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
-      path = `/api/${pathArray.join('/')}`;
-      console.log(`📋 [VERCEL] Path do query.path:`, path);
-    } else if (req.url) {
-      // Forma 2: req.url direto
-      path = req.url;
-      console.log(`📋 [VERCEL] Path do req.url:`, path);
-    }
-    
-    // Garantir que começa com /api/
-    if (!path.startsWith('/api/')) {
-      path = `/api${path === '/' ? '' : path}`;
-      console.log(`📋 [VERCEL] Path ajustado:`, path);
-    }
-    
-    // Garantir que req.url está correto para as rotas
-    req.url = path;
-    
-    return routeHandler(req, res, path);
-  } catch (error: any) {
-    console.error(`❌ [VERCEL] Erro:`, error);
-    setJsonHeaders(res);
-    return res.status(500).json({
-      error: "Erro ao processar requisição",
-      message: error?.message || "Erro interno",
-      path: req.url || req.path,
-      method: req.method
-    });
-  }
 }

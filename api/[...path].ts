@@ -1,10 +1,24 @@
 // api/[...path].ts
+// Handler para todas as rotas /api/* na Vercel
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import app from "../apps/backend/src/api";
+
+// Importar o app Express usando require para compatibilidade CommonJS
+let app: any;
+try {
+  // Usar require em vez de import para máxima compatibilidade com Serverless Functions
+  app = require("../apps/backend/src/api").default;
+  console.log("✅ [VERCEL] App Express importado com sucesso");
+} catch (error: any) {
+  console.error("❌ [VERCEL] Erro ao importar app Express:", error);
+  console.error("❌ [VERCEL] Stack:", error?.stack);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Headers CORS globais - SEMPRE definir antes de qualquer resposta
+  // Log inicial para debug
+  console.log(`🔍 [VERCEL HANDLER] ${req.method} ${req.url}`);
+  
+  // Headers CORS - SEMPRE definir antes de qualquer resposta
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -12,11 +26,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Resposta para preflight OPTIONS
   if (req.method === "OPTIONS") {
+    console.log("✅ [VERCEL] OPTIONS preflight - retornando 200");
     return res.status(200).end();
+  }
+
+  // Verificar se o app foi importado corretamente
+  if (!app) {
+    console.error("❌ [VERCEL] App Express não foi importado");
+    return res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      message: "App Express não disponível",
+      hint: "Verifique os logs de build na Vercel"
+    });
   }
 
   try {
     // Processar path corretamente
+    // Na Vercel, req.url já vem com /api/ incluído quando a rota é /api/*
     let path = req.url || "/";
     
     // Remover query string
@@ -27,19 +53,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       path = `/${path}`;
     }
     
-    // Se não começar com /api/, adicionar
+    // IMPORTANTE: Na Vercel com [...path].ts, req.url já vem com /api/ incluído
+    // Não adicionar /api/ novamente se já existir
     if (!path.startsWith("/api/")) {
       path = `/api${path === "/" ? "" : path}`;
     }
 
-    console.log(`🔍 Handler Vercel: ${req.method} ${path} (url original: ${req.url})`);
+    console.log(`🔍 [VERCEL] Path processado: ${path} (url original: ${req.url})`);
 
     // Converter body JSON se necessário
     let parsedBody: any = req.body;
     if (typeof req.body === "string" && req.headers["content-type"]?.includes("application/json")) {
       try {
         parsedBody = JSON.parse(req.body);
-      } catch {
+      } catch (parseError) {
+        console.warn("⚠️ [VERCEL] Erro ao parsear JSON, usando body original");
         parsedBody = req.body;
       }
     }
@@ -73,20 +101,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return this;
       },
       json(data: any) {
+        if (res.writableEnded) {
+          console.warn("⚠️ [VERCEL] Tentativa de enviar resposta após end");
+          return this;
+        }
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         return res.status(this.statusCode).json(data);
       },
       send(data: any) {
+        if (res.writableEnded) {
+          console.warn("⚠️ [VERCEL] Tentativa de enviar resposta após end");
+          return this;
+        }
         const contentType = typeof data === "string" ? "text/plain" : "application/json";
         res.setHeader("Content-Type", contentType);
         return res.status(this.statusCode).send(data);
       },
       end(data?: any) {
+        if (res.writableEnded) return;
         return res.status(this.statusCode).end(data);
       },
       setHeader(name: string, value: string) {
         this._headers[name] = value;
-        res.setHeader(name, value);
+        if (!res.writableEnded) {
+          res.setHeader(name, value);
+        }
         return this;
       },
     };
@@ -96,26 +135,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let resolved = false;
       
       const timeout = setTimeout(() => {
-        if (!resolved) {
+        if (!resolved && !res.writableEnded) {
           resolved = true;
-          if (!res.writableEnded) {
-            console.error("⏱️ Timeout - nenhuma resposta do Express");
-            res.status(504).json({ error: "Timeout", message: "A requisição demorou muito" });
-          }
+          console.error("⏱️ [VERCEL] Timeout após 10s - nenhuma resposta do Express");
+          res.status(504).json({ 
+            error: "Timeout", 
+            message: "A requisição demorou muito para processar" 
+          });
           resolve();
         }
       }, 10000);
 
       const next = (err?: any) => {
-        if (resolved) return;
+        if (resolved) {
+          console.warn("⚠️ [VERCEL] next() chamado após resolução");
+          return;
+        }
         
         clearTimeout(timeout);
         resolved = true;
-        
+
         if (err) {
-          console.error("❌ Erro no Express:", err);
+          console.error("❌ [VERCEL] Erro no Express middleware:", err);
+          console.error("❌ [VERCEL] Stack:", err?.stack);
           if (!res.writableEnded) {
-            res.status(500).json({ error: "Erro interno do servidor", message: err.message });
+            res.status(500).json({ 
+              error: "Erro interno do servidor", 
+              message: err.message || "Erro ao processar requisição"
+            });
           }
           resolve();
           return;
@@ -123,7 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         // Se chegou aqui sem resposta, é 404
         if (!res.writableEnded) {
-          console.warn("⚠️ Rota não encontrada:", expressReq.method, path);
+          console.warn(`⚠️ [VERCEL] 404 - Rota não encontrada: ${expressReq.method} ${path}`);
           res.status(404).json({
             error: "Rota não encontrada",
             method: expressReq.method,
@@ -137,13 +184,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Chamar o Express
       try {
-        console.log(`🚀 Chamando Express app: ${expressReq.method} ${path}`);
+        console.log(`🚀 [VERCEL] Chamando Express app: ${expressReq.method} ${path}`);
         app(expressReq, expressRes, next);
       } catch (error: any) {
         clearTimeout(timeout);
         if (!resolved && !res.writableEnded) {
           resolved = true;
-          console.error("❌ Erro ao chamar Express:", error);
+          console.error("❌ [VERCEL] Erro ao chamar Express:", error);
+          console.error("❌ [VERCEL] Stack:", error?.stack);
           res.status(500).json({
             error: "Erro ao processar requisição",
             message: error?.message || "Erro interno do servidor"
@@ -153,9 +201,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
   } catch (err: any) {
-    console.error("Erro no handler Vercel:", err);
+    console.error("❌ [VERCEL] Erro no handler:", err);
+    console.error("❌ [VERCEL] Stack:", err?.stack);
     if (!res.writableEnded) {
-      res.status(500).json({ error: err.message || "Erro interno do servidor" });
+      res.status(500).json({ 
+        error: "Erro interno do servidor", 
+        message: err.message || "Erro ao processar requisição"
+      });
     }
   }
 }

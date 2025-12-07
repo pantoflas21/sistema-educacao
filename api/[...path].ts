@@ -3,6 +3,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import serverless from "serverless-http";
+import * as path from "path";
 
 // Importar o app Express com múltiplas tentativas
 let app: any = null;
@@ -10,58 +11,60 @@ let handler: any = null;
 
 // Função para tentar importar o backend
 function importBackend() {
-  // Tentativa 1: Backend compilado (produção - Vercel)
-  try {
-    console.log("🔍 [VERCEL] Tentando importar backend compilado de dist/api.js...");
-    const backendModule = require("../apps/backend/dist/api");
-    app = backendModule.default || backendModule.app || backendModule;
-    
-    if (app && typeof app === 'object') {
-      // Verificar se é um app Express válido
-      if (app.get && app.post && app.use) {
-        console.log("✅ [VERCEL] Backend compilado importado com sucesso");
-        console.log("📋 [VERCEL] Rotas disponíveis:", Object.keys(app._router?.stack || {}).length || "N/A");
-        return true;
+  // Caminhos a tentar, em ordem de preferência
+  const pathsToTry = [
+    "../apps/backend/dist/api",
+    "../apps/backend/src/api",
+    path.join(process.cwd(), "apps", "backend", "dist", "api"),
+    path.join(process.cwd(), "apps", "backend", "src", "api"),
+  ];
+
+  for (let i = 0; i < pathsToTry.length; i++) {
+    const modulePath = pathsToTry[i];
+    try {
+      console.log(`🔍 [VERCEL] Tentativa ${i + 1}/${pathsToTry.length}: Importando de ${modulePath}...`);
+      
+      // Tentar importar diretamente (require resolve caminhos automaticamente)
+      const backendModule = require(modulePath);
+      app = backendModule.default || backendModule.app || backendModule;
+      
+      if (app && typeof app === 'object') {
+        // Verificar se é um app Express válido
+        if (app.get && app.post && app.use) {
+          console.log(`✅ [VERCEL] Backend importado com sucesso!`);
+          console.log(`📋 [VERCEL] Caminho: ${modulePath}`);
+          
+          // Contar rotas registradas para debug
+          try {
+            const routesCount = app._router?.stack?.length || 0;
+            console.log(`📋 [VERCEL] Total de rotas registradas: ${routesCount}`);
+          } catch (e) {
+            // Ignorar erro ao contar rotas
+          }
+          
+          return true;
+        } else {
+          console.warn(`⚠️ [VERCEL] Backend importado mas não é um app Express válido`);
+          console.warn(`📋 [VERCEL] Tipo: ${typeof app}, Propriedades:`, Object.keys(app || {}).slice(0, 5).join(", "));
+          app = null;
+        }
       } else {
-        console.warn("⚠️ [VERCEL] Backend importado mas métodos Express não encontrados");
-        console.warn("📋 [VERCEL] Propriedades encontradas:", Object.keys(app || {}).join(", "));
+        console.warn(`⚠️ [VERCEL] Backend importado mas não é um objeto válido`);
+        app = null;
       }
-    } else {
-      console.warn("⚠️ [VERCEL] Backend importado mas não é um objeto válido");
-    }
-  } catch (error1: any) {
-    console.warn("⚠️ [VERCEL] Tentativa 1 falhou (dist/api.js):", error1.message);
-    if (error1.stack) {
-      console.warn("📋 [VERCEL] Stack trace:", error1.stack);
-    }
-  }
-  
-  // Tentativa 2: Backend TypeScript (fallback/desenvolvimento)
-  try {
-    console.log("🔍 [VERCEL] Tentando importar backend TypeScript de src/api.ts...");
-    const backendModule = require("../apps/backend/src/api");
-    app = backendModule.default || backendModule.app || backendModule;
-    
-    if (app && typeof app === 'object') {
-      if (app.get && app.post && app.use) {
-        console.log("✅ [VERCEL] Backend TypeScript importado (fallback)");
-        console.log("📋 [VERCEL] Rotas disponíveis:", Object.keys(app._router?.stack || {}).length || "N/A");
-        return true;
+    } catch (error: any) {
+      if (error.code === 'MODULE_NOT_FOUND') {
+        console.log(`   ⚠️ Módulo não encontrado: ${modulePath}`);
       } else {
-        console.warn("⚠️ [VERCEL] Backend TypeScript importado mas métodos Express não encontrados");
-        console.warn("📋 [VERCEL] Propriedades encontradas:", Object.keys(app || {}).join(", "));
+        console.warn(`   ⚠️ Erro ao importar: ${error.message}`);
       }
-    } else {
-      console.warn("⚠️ [VERCEL] Backend TypeScript importado mas não é um objeto válido");
-    }
-  } catch (error2: any) {
-    console.error("❌ [VERCEL] Tentativa 2 falhou (src/api.ts):", error2.message);
-    if (error2.stack) {
-      console.error("📋 [VERCEL] Stack trace:", error2.stack);
+      app = null;
+      continue;
     }
   }
   
   console.error("❌ [VERCEL] Nenhuma tentativa de importação funcionou");
+  console.error("❌ [VERCEL] Verifique se o backend foi compilado corretamente");
   return false;
 }
 

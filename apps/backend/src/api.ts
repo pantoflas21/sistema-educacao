@@ -765,10 +765,12 @@ app.put("/api/teacher/grades", validate(schemas.updateGrades), async (req, res) 
         res.status(200).json({ n1: updated.n1, n2: updated.n2, n3: updated.n3, n4: updated.n4, average: updated.average });
       } else {
         // Criar novo
+        // subjectId é obrigatório no schema, então garantir que sempre tenha um valor
+        const finalSubjectId = subjectId ? String(subjectId) : "GENERAL";
         const [inserted] = await db.insert(gradesTable).values({
           classId: String(classId),
           studentId: String(studentId),
-          subjectId: subjectId ? String(subjectId) : null,
+          subjectId: finalSubjectId,
           termId: termId ? String(termId) : null,
           n1: cleanN1,
           n2: cleanN2,

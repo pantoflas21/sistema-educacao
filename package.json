@@ -13,6 +13,9 @@
     "install:all": "cd apps/backend && npm install && cd ../frontend && npm install",
     "start": "cd apps/backend && npm start"
   },
+  "dependencies": {
+    "serverless-http": "^3.0.0"
+  },
   "devDependencies": {
     "@vercel/node": "^3.0.0",
     "@types/node": "^20.11.0",

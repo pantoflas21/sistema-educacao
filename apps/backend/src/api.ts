@@ -115,9 +115,23 @@ app.get("/api/auth/user", (req: any, res) => {
   res.json({ id: u.sub || "guest", email: u.email || null, firstName: u.firstName || null, lastName: u.lastName || null, role: u.role || "Guest", schoolId: u.schoolId || null, profileImageUrl: null });
 });
 
-app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) => {
+app.post("/api/login", authRateLimit, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const { email, password } = req.body || {};
+    
+    // Validação básica de campos obrigatórios
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: "validation_error", 
+        message: "Email e senha são obrigatórios" 
+      });
+    }
     
     // Sanitização e validação
     let cleanEmail: string;
@@ -127,6 +141,7 @@ app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) 
       cleanEmail = sanitizeEmail(email);
       cleanPassword = sanitizePassword(password);
     } catch (error: any) {
+      console.error("❌ Erro de validação no login:", error);
       return res.status(400).json({ 
         error: "validation_error", 
         message: error.message || "Dados inválidos" 
@@ -150,34 +165,69 @@ app.post("/api/login", authRateLimit, validate(schemas.login), async (req, res) 
         role = "Student";
       }
       
-      const token = signToken({ sub: cleanEmail || "demo-admin", email: cleanEmail || "admin@example.com", role });
-      return res.json({ token, role });
+      try {
+        const token = signToken({ sub: cleanEmail || "demo-admin", email: cleanEmail || "admin@example.com", role });
+        console.log("✅ Login bem-sucedido (DEMO):", cleanEmail, "role:", role);
+        return res.json({ token, role });
+      } catch (tokenError: any) {
+        console.error("❌ Erro ao gerar token:", tokenError);
+        return res.status(500).json({ 
+          error: "token_error", 
+          message: "Erro ao gerar token de autenticação" 
+        });
+      }
     }
     
-    if (!db) return res.status(503).json({ error: "db_unavailable" });
-    
-    const found = await db.select().from(usersTable).where(eq(usersTable.email, cleanEmail)).limit(1);
-    const u: any = found[0];
-    
-    if (!u || u.active === false) {
-      // Sempre retornar mesmo erro para evitar enumeração de usuários
-      // Delay artificial para dificultar brute force
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-      return res.status(401).json({ error: "invalid_credentials" });
+    if (!db) {
+      console.warn("⚠️ Banco de dados não disponível para login");
+      return res.status(503).json({ error: "db_unavailable", message: "Banco de dados não disponível" });
     }
     
-    const ok = await bcrypt.compare(cleanPassword, String(u.passwordHash));
-    if (!ok) {
-      // Delay artificial
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-      return res.status(401).json({ error: "invalid_credentials" });
+    try {
+      const found = await db.select().from(usersTable).where(eq(usersTable.email, cleanEmail)).limit(1);
+      const u: any = found[0];
+      
+      if (!u || u.active === false) {
+        // Sempre retornar mesmo erro para evitar enumeração de usuários
+        // Delay artificial para dificultar brute force
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+        return res.status(401).json({ error: "invalid_credentials", message: "Credenciais inválidas" });
+      }
+      
+      const ok = await bcrypt.compare(cleanPassword, String(u.passwordHash));
+      if (!ok) {
+        // Delay artificial
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+        return res.status(401).json({ error: "invalid_credentials", message: "Credenciais inválidas" });
+      }
+      
+      try {
+        const token = signToken({ sub: u.id, email: u.email, role: u.role, schoolId: u.schoolId });
+        console.log("✅ Login bem-sucedido (DB):", cleanEmail, "role:", u.role);
+        return res.json({ token, role: u.role });
+      } catch (tokenError: any) {
+        console.error("❌ Erro ao gerar token:", tokenError);
+        return res.status(500).json({ 
+          error: "token_error", 
+          message: "Erro ao gerar token de autenticação" 
+        });
+      }
+    } catch (dbError: any) {
+      console.error("❌ Erro ao consultar banco de dados:", dbError);
+      return res.status(500).json({ 
+        error: "database_error", 
+        message: "Erro ao consultar banco de dados" 
+      });
     }
-    
-    const token = signToken({ sub: u.id, email: u.email, role: u.role, schoolId: u.schoolId });
-    res.json({ token, role: u.role });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "internal_server_error" });
+  } catch (error: any) {
+    console.error("❌ Erro não tratado no login:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.status(500).json({ 
+      error: "internal_server_error", 
+      message: error?.message || "Erro interno do servidor",
+      details: String(error)
+    });
   }
 });
 
@@ -310,10 +360,21 @@ app.get("/api/teacher/classes", async (req, res) => {
     if (db && !env.AUTH_DEMO) {
       // Buscar turmas do banco
       const classesList = await db.select().from(classesTable);
+      
+      // Contar alunos por turma
+      const studentsList = await db.select().from(studentsTable);
+      const studentsByClass: Record<number, number> = {};
+      
+      studentsList.forEach(student => {
+        if (student.classId) {
+          studentsByClass[student.classId] = (studentsByClass[student.classId] || 0) + 1;
+        }
+      });
+      
       const classes = classesList.map(c => ({
         id: String(c.id),
         name: c.name,
-        studentsCount: 0, // TODO: contar alunos da turma
+        studentsCount: studentsByClass[c.id] || 0,
         termId
       }));
       console.log("✅ GET /api/teacher/classes (DB) - Retornando", classes.length, "turmas para termId:", termId);
@@ -952,11 +1013,15 @@ let secTerms: { number: number; startDate: string; endDate: string; status: "ope
 // GET /api/secretary/students - Listar alunos (CORRIGIDA)
 app.get("/api/secretary/students", async (req, res) => {
   try {
+    console.log("🔍 GET /api/secretary/students - Requisição recebida");
+    
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    console.log("🔍 GET /api/secretary/students - AUTH_DEMO:", env.AUTH_DEMO, "DB:", !!db);
     
     // Estratégia: usar banco primeiro, fallback apenas em modo demo
     if (db && !env.AUTH_DEMO) {
@@ -972,23 +1037,25 @@ app.get("/api/secretary/students", async (req, res) => {
         matricula: s.matricula
       }));
       console.log("✅ GET /api/secretary/students (DB) - Retornando", list.length, "alunos");
-      res.status(200).json(list);
+      return res.status(200).json(list);
     } else if (env.AUTH_DEMO) {
       // Modo demo - usar dados fictícios
       console.log("✅ GET /api/secretary/students (DEMO) - Retornando", secStudents.length, "alunos");
-      res.status(200).json(secStudents);
+      return res.status(200).json(secStudents);
     } else {
       // Sem banco e sem demo - retornar vazio
       console.log("✅ GET /api/secretary/students - Retornando array vazio (sem banco, sem demo)");
-      res.status(200).json([]);
+      return res.status(200).json([]);
     }
   } catch (error: any) {
     console.error("❌ Erro ao listar alunos:", error);
+    console.error("📋 Stack:", error?.stack);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: "Erro ao listar alunos", 
-      message: error?.message || "Erro interno do servidor"
+      message: error?.message || "Erro interno do servidor",
+      details: String(error)
     });
   }
 });
@@ -1092,34 +1159,40 @@ app.delete("/api/secretary/students/:id", (req, res) => {
 // GET /api/secretary/classes - Listar turmas (CORRIGIDA)
 app.get("/api/secretary/classes", async (req, res) => {
   try {
+    console.log("🔍 GET /api/secretary/classes - Requisição recebida");
+    
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
+    console.log("🔍 GET /api/secretary/classes - AUTH_DEMO:", env.AUTH_DEMO, "DB:", !!db);
+    
     // Estratégia: usar banco primeiro, fallback apenas em modo demo
     if (db && !env.AUTH_DEMO) {
       const rows = await db.select().from(classesTable);
       const classes = rows.map((r: any) => ({ id: String(r.id), code: r.code, name: r.name, capacity: r.capacity || 40, shift: r.shift || "manha" }));
       console.log("✅ GET /api/secretary/classes (DB) - Retornando", classes.length, "turmas");
-      res.status(200).json(classes);
+      return res.status(200).json(classes);
     } else if (env.AUTH_DEMO) {
       // Modo demo - usar dados fictícios
       console.log("✅ GET /api/secretary/classes (DEMO) - Retornando", secClasses.length, "turmas");
-      res.status(200).json(secClasses);
+      return res.status(200).json(secClasses);
     } else {
       // Sem banco e sem demo - retornar vazio
       console.log("✅ GET /api/secretary/classes - Retornando array vazio (sem banco, sem demo)");
-      res.status(200).json([]);
+      return res.status(200).json([]);
     }
   } catch (error: any) {
     console.error("❌ Erro ao listar turmas:", error);
+    console.error("📋 Stack:", error?.stack);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: "Erro ao listar turmas", 
-      message: error?.message || "Erro interno do servidor"
+      message: error?.message || "Erro interno do servidor",
+      details: String(error)
     });
   }
 });
@@ -1949,17 +2022,31 @@ const lessonPlans: LessonPlan[] = [];
 // Endpoints para SECRETÁRIO DA ESCOLA (não Secretário de Educação)
 app.get("/api/secretary/lesson-plans", (req, res) => {
   try {
+    console.log("🔍 GET /api/secretary/lesson-plans - Requisição recebida");
+    
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     const { category, status } = req.query as any;
     let filtered = lessonPlans;
     if (category) filtered = filtered.filter(p => p.category === category);
     if (status) filtered = filtered.filter(p => p.status === status);
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.json(filtered);
+    
+    console.log("✅ GET /api/secretary/lesson-plans - Retornando", filtered.length, "planos");
+    return res.json(filtered);
   } catch (error: any) {
+    console.error("❌ Erro ao buscar planos:", error);
+    console.error("📋 Stack:", error?.stack);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(500).json({ error: "Erro ao buscar planos", message: error?.message });
+    return res.status(500).json({ 
+      error: "Erro ao buscar planos", 
+      message: error?.message || "Erro interno do servidor",
+      details: String(error)
+    });
   }
 });
 
@@ -2023,6 +2110,14 @@ app.put("/api/secretary/lesson-plans/:id/review", validate(schemas.reviewLessonP
 
 app.get("/api/secretary/lesson-plans/stats", (req, res) => {
   try {
+    console.log("🔍 GET /api/secretary/lesson-plans/stats - Requisição recebida");
+    
+    // Garantir headers JSON e CORS ANTES de tudo
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     const stats = {
       total: lessonPlans.length,
       pending: lessonPlans.filter(p => p.status === "pending").length,
@@ -2035,13 +2130,19 @@ app.get("/api/secretary/lesson-plans/stats", (req, res) => {
         "ensino-medio": lessonPlans.filter(p => p.category === "ensino-medio").length
       }
     };
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.json(stats);
+    
+    console.log("✅ GET /api/secretary/lesson-plans/stats - Retornando estatísticas");
+    return res.json(stats);
   } catch (error: any) {
+    console.error("❌ Erro ao buscar estatísticas:", error);
+    console.error("📋 Stack:", error?.stack);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(500).json({ error: "Erro ao buscar estatísticas", message: error?.message });
+    return res.status(500).json({ 
+      error: "Erro ao buscar estatísticas", 
+      message: error?.message || "Erro interno do servidor",
+      details: String(error)
+    });
   }
 });
 // Admin - UMA escola apenas (não múltiplas)

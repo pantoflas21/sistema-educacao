@@ -1,33 +1,8 @@
 // api/[...path].ts
-// Handler para todas as rotas /api/* na Vercel
-// SOLUÇÃO DEFINITIVA: Rotas inline para garantir funcionamento
+// Handler direto para todas as rotas /api/* na Vercel
+// SOLUÇÃO DEFINITIVA: Sem serverless-http, rotas diretas
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import serverless from "serverless-http";
-import express from "express";
-import cors from "cors";
-
-// Criar app Express diretamente no handler
-const app = express();
-
-// Middleware básico
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Handler CORS para OPTIONS
-app.options("*", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.status(200).end();
-});
 
 // Dados demo (em memória)
 const secStudents: { id: string; name: string; cpf: string; rg?: string; birthDate?: string; classId?: string }[] = [
@@ -81,190 +56,88 @@ const adminUsers: any[] = [
 ];
 
 // Helper para headers JSON
-const setJsonHeaders = (res: VercelResponse) => {
+function setJsonHeaders(res: VercelResponse) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-};
+}
 
-// Health check
-app.get("/api/health", (req, res) => {
-  setJsonHeaders(res);
-  res.json({ ok: true, uptime: process.uptime() });
-});
-
-// Endpoint de teste
-app.get("/api/test", (req, res) => {
-  setJsonHeaders(res);
-  res.json({ 
-    ok: true, 
-    authDemo: process.env.AUTH_DEMO || "false",
-    message: "API funcionando corretamente",
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Login simplificado (modo demo)
-app.post("/api/login", async (req, res) => {
-  try {
+// Router simples
+function routeHandler(req: VercelRequest, res: VercelResponse, path: string) {
+  const method = req.method || "GET";
+  
+  console.log(`🚀 [VERCEL] ${method} ${path}`);
+  console.log(`🔍 [VERCEL] req.query:`, JSON.stringify(req.query));
+  console.log(`🔍 [VERCEL] req.url:`, req.url);
+  
+  // CORS Preflight
+  if (method === "OPTIONS") {
     setJsonHeaders(res);
-    
-    const { email, password } = req.body || {};
-    
-    if (!email || !password) {
-      return res.status(400).json({ 
-        error: "validation_error", 
-        message: "Email e senha são obrigatórios" 
+    return res.status(200).end();
+  }
+  
+  // Health check
+  if (path === "/api/health" && method === "GET") {
+    setJsonHeaders(res);
+    return res.json({ ok: true, uptime: process.uptime() });
+  }
+  
+  // Test
+  if (path === "/api/test" && method === "GET") {
+    setJsonHeaders(res);
+    return res.json({ 
+      ok: true, 
+      authDemo: process.env.AUTH_DEMO || "false",
+      message: "API funcionando corretamente",
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  // Login
+  if (path === "/api/login" && method === "POST") {
+    try {
+      setJsonHeaders(res);
+      const { email, password } = req.body || {};
+      
+      if (!email || !password) {
+        return res.status(400).json({ 
+          error: "validation_error", 
+          message: "Email e senha são obrigatórios" 
+        });
+      }
+      
+      const emailLower = String(email || "").toLowerCase();
+      let role = "Admin";
+      
+      if (emailLower.includes("tesouraria")) {
+        role = "Treasury";
+      } else if (emailLower.includes("prof") || emailLower.includes("professor")) {
+        role = "Teacher";
+      } else if (emailLower.includes("secretario") || emailLower.includes("secretaria")) {
+        role = "Secretary";
+      } else if (emailLower.includes("educacao") || emailLower.includes("educação")) {
+        role = "EducationSecretary";
+      } else if (emailLower.includes("aluno") || emailLower.includes("student")) {
+        role = "Student";
+      }
+      
+      const token = `demo-token-${Date.now()}-${role.toLowerCase()}`;
+      console.log("✅ Login (DEMO):", emailLower, "role:", role);
+      return res.json({ token, role });
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ 
+        error: "internal_server_error", 
+        message: error?.message || "Erro interno do servidor"
       });
     }
-    
-    // Modo demo - sempre permitir login
-    const emailLower = String(email || "").toLowerCase();
-    let role = "Admin";
-    
-    if (emailLower.includes("tesouraria")) {
-      role = "Treasury";
-    } else if (emailLower.includes("prof") || emailLower.includes("professor")) {
-      role = "Teacher";
-    } else if (emailLower.includes("secretario") || emailLower.includes("secretaria")) {
-      role = "Secretary";
-    } else if (emailLower.includes("educacao") || emailLower.includes("educação")) {
-      role = "EducationSecretary";
-    } else if (emailLower.includes("aluno") || emailLower.includes("student")) {
-      role = "Student";
-    }
-    
-    // Token simples para demo (em produção, use JWT real)
-    const token = `demo-token-${Date.now()}-${role.toLowerCase()}`;
-    
-    console.log("✅ Login (DEMO):", emailLower, "role:", role);
-    
-    return res.json({ token, role });
-  } catch (error: any) {
-    console.error("❌ Erro no login:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "internal_server_error", 
-      message: error?.message || "Erro interno do servidor"
-    });
   }
-});
-
-// GET /api/secretary/students
-app.get("/api/secretary/students", (req, res) => {
-  try {
-    console.log("🔍 GET /api/secretary/students");
+  
+  // Statistics
+  if (path === "/api/statistics/overview" && method === "GET") {
     setJsonHeaders(res);
-    console.log("✅ GET /api/secretary/students - Retornando", secStudents.length, "alunos");
-    res.status(200).json(secStudents);
-  } catch (error: any) {
-    console.error("❌ Erro ao listar alunos:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao listar alunos", 
-      message: error?.message || "Erro interno do servidor"
-    });
-  }
-});
-
-// GET /api/secretary/classes
-app.get("/api/secretary/classes", (req, res) => {
-  try {
-    console.log("🔍 GET /api/secretary/classes");
-    setJsonHeaders(res);
-    console.log("✅ GET /api/secretary/classes - Retornando", secClasses.length, "turmas");
-    res.status(200).json(secClasses);
-  } catch (error: any) {
-    console.error("❌ Erro ao listar turmas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao listar turmas", 
-      message: error?.message || "Erro interno do servidor"
-    });
-  }
-});
-
-// POST /api/secretary/students
-app.post("/api/secretary/students", async (req, res) => {
-  try {
-    setJsonHeaders(res);
-    
-    const { name, cpf, rg, birthDate, classId, matricula } = req.body || {};
-    
-    if (!name || !cpf) {
-      return res.status(400).json({ 
-        error: "validation_error",
-        message: "Nome e CPF são obrigatórios"
-      });
-    }
-    
-    const id = `stu-${Date.now()}`;
-    const newStudent = { 
-      id, 
-      name: String(name), 
-      cpf: String(cpf), 
-      rg: rg ? String(rg) : undefined, 
-      birthDate: birthDate ? String(birthDate) : undefined, 
-      classId: classId ? String(classId) : undefined,
-      matricula: matricula || undefined
-    };
-    
-    secStudents.push(newStudent);
-    
-    console.log("✅ POST /api/secretary/students - Aluno criado:", id);
-    res.status(201).json(newStudent);
-  } catch (error: any) {
-    console.error("❌ Erro ao criar aluno:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao criar aluno", 
-      message: error?.message || "Erro interno do servidor"
-    });
-  }
-});
-
-// POST /api/secretary/classes
-app.post("/api/secretary/classes", async (req, res) => {
-  try {
-    setJsonHeaders(res);
-    
-    const { name, capacity, shift, code } = req.body || {};
-    
-    if (!name) {
-      return res.status(400).json({ 
-        error: "validation_error",
-        message: "Nome é obrigatório"
-      });
-    }
-    
-    const id = code || `c${Date.now()}`;
-    const newClass = { 
-      id,
-      name: String(name),
-      capacity: capacity ? Number(capacity) : 40,
-      shift: shift || "manha"
-    };
-    
-    secClasses.push(newClass);
-    
-    console.log("✅ POST /api/secretary/classes - Turma criada:", id);
-    res.status(201).json(newClass);
-  } catch (error: any) {
-    console.error("❌ Erro ao criar turma:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao criar turma", 
-      message: error?.message || "Erro interno do servidor"
-    });
-  }
-});
-
-// GET /api/statistics/overview
-app.get("/api/statistics/overview", (req, res) => {
-  try {
-    setJsonHeaders(res);
-    const data = { 
+    return res.json({ 
       systemHealth: 98, 
       activeUsers: 120, 
       connectedSchools: 5, 
@@ -272,212 +145,222 @@ app.get("/api/statistics/overview", (req, res) => {
       resourcesUsage: { cpu: 35, memory: 48 }, 
       engagement: { dailyActive: 80, weeklyActive: 220 }, 
       errorsLastHour: 1 
-    };
-    console.log("✅ GET /api/statistics/overview");
-    res.status(200).json(data);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar estatísticas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao carregar estatísticas", 
-      message: error?.message || "Erro interno do servidor"
     });
   }
-});
-
-// GET /api/admin/users
-app.get("/api/admin/users", (req, res) => {
-  try {
-    console.log("🔍 GET /api/admin/users");
+  
+  // Admin Users
+  if (path === "/api/admin/users" && method === "GET") {
     setJsonHeaders(res);
     console.log("✅ GET /api/admin/users - Retornando", adminUsers.length, "usuários");
-    res.status(200).json(adminUsers);
-  } catch (error: any) {
-    console.error("❌ Erro ao listar usuários:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao listar usuários", 
-      message: error?.message || "Erro interno do servidor"
-    });
+    return res.json(adminUsers);
   }
-});
-
-// POST /api/admin/users
-app.post("/api/admin/users", async (req, res) => {
-  try {
-    setJsonHeaders(res);
-    
-    const { email, password, role, firstName, lastName } = req.body || {};
-    
-    if (!email || !password || !role) {
-      return res.status(400).json({ 
-        error: "validation_error",
-        message: "Email, senha e role são obrigatórios"
+  
+  if (path === "/api/admin/users" && method === "POST") {
+    try {
+      setJsonHeaders(res);
+      const { email, password, role, firstName, lastName } = req.body || {};
+      
+      if (!email || !password || !role) {
+        return res.status(400).json({ 
+          error: "validation_error",
+          message: "Email, senha e role são obrigatórios"
+        });
+      }
+      
+      const id = `demo-${Date.now()}`;
+      const newUser = {
+        id,
+        email: String(email),
+        role: String(role),
+        firstName: firstName || null,
+        lastName: lastName || null,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+      
+      adminUsers.push(newUser);
+      console.log("✅ POST /api/admin/users - Usuário criado:", id);
+      return res.status(201).json({ 
+        id: newUser.id, 
+        email: newUser.email, 
+        role: newUser.role,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        message: "Usuário criado em modo demo"
+      });
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ 
+        error: "Erro ao criar usuário", 
+        message: error?.message || "Erro interno do servidor"
       });
     }
-    
-    const id = `demo-${Date.now()}`;
-    const newUser = {
-      id,
-      email: String(email),
-      role: String(role),
-      firstName: firstName || null,
-      lastName: lastName || null,
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-    
-    adminUsers.push(newUser);
-    
-    console.log("✅ POST /api/admin/users - Usuário criado:", id);
-    res.status(201).json({ 
-      id: newUser.id, 
-      email: newUser.email, 
-      role: newUser.role,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      message: "Usuário criado em modo demo"
-    });
-  } catch (error: any) {
-    console.error("❌ Erro ao criar usuário:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao criar usuário", 
-      message: error?.message || "Erro interno do servidor"
-    });
   }
-});
-
-// GET /api/teacher/terms
-app.get("/api/teacher/terms", (req, res) => {
-  try {
-    console.log("🔍 GET /api/teacher/terms");
+  
+  // Secretary Students
+  if (path === "/api/secretary/students" && method === "GET") {
+    setJsonHeaders(res);
+    console.log("✅ GET /api/secretary/students - Retornando", secStudents.length, "alunos");
+    return res.json(secStudents);
+  }
+  
+  if (path === "/api/secretary/students" && method === "POST") {
+    try {
+      setJsonHeaders(res);
+      const { name, cpf, rg, birthDate, classId, matricula } = req.body || {};
+      
+      if (!name || !cpf) {
+        return res.status(400).json({ 
+          error: "validation_error",
+          message: "Nome e CPF são obrigatórios"
+        });
+      }
+      
+      const id = `stu-${Date.now()}`;
+      const newStudent = { 
+        id, 
+        name: String(name), 
+        cpf: String(cpf), 
+        rg: rg ? String(rg) : undefined, 
+        birthDate: birthDate ? String(birthDate) : undefined, 
+        classId: classId ? String(classId) : undefined,
+        matricula: matricula || undefined
+      };
+      
+      secStudents.push(newStudent);
+      console.log("✅ POST /api/secretary/students - Aluno criado:", id);
+      return res.status(201).json(newStudent);
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ 
+        error: "Erro ao criar aluno", 
+        message: error?.message || "Erro interno do servidor"
+      });
+    }
+  }
+  
+  // Secretary Classes
+  if (path === "/api/secretary/classes" && method === "GET") {
+    setJsonHeaders(res);
+    console.log("✅ GET /api/secretary/classes - Retornando", secClasses.length, "turmas");
+    return res.json(secClasses);
+  }
+  
+  if (path === "/api/secretary/classes" && method === "POST") {
+    try {
+      setJsonHeaders(res);
+      const { name, capacity, shift, code } = req.body || {};
+      
+      if (!name) {
+        return res.status(400).json({ 
+          error: "validation_error",
+          message: "Nome é obrigatório"
+        });
+      }
+      
+      const id = code || `c${Date.now()}`;
+      const newClass = { 
+        id,
+        name: String(name),
+        capacity: capacity ? Number(capacity) : 40,
+        shift: shift || "manha"
+      };
+      
+      secClasses.push(newClass);
+      console.log("✅ POST /api/secretary/classes - Turma criada:", id);
+      return res.status(201).json(newClass);
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ 
+        error: "Erro ao criar turma", 
+        message: error?.message || "Erro interno do servidor"
+      });
+    }
+  }
+  
+  // Teacher Terms
+  if (path === "/api/teacher/terms" && method === "GET") {
     setJsonHeaders(res);
     console.log("✅ GET /api/teacher/terms - Retornando", demoData.terms.length, "bimestres");
-    res.status(200).json(demoData.terms);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar bimestres:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar bimestres", details: String(error) });
+    return res.json(demoData.terms);
   }
-});
-
-// GET /api/teacher/classes
-app.get("/api/teacher/classes", (req, res) => {
-  try {
-    const termId = String(req.query.termId || "");
-    console.log("🔍 GET /api/teacher/classes?termId=" + termId);
+  
+  // Teacher Classes
+  if (path.startsWith("/api/teacher/classes") && method === "GET") {
     setJsonHeaders(res);
+    const termId = String(req.query.termId || "");
     const classes = demoData.classes.map(c => ({ ...c, termId }));
     console.log("✅ GET /api/teacher/classes - Retornando", classes.length, "turmas");
-    res.status(200).json(classes);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar turmas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar turmas", details: String(error) });
+    return res.json(classes);
   }
-});
-
-// GET /api/teacher/subjects
-app.get("/api/teacher/subjects", (req, res) => {
-  try {
-    const classId = String(req.query.classId || "");
-    console.log("🔍 GET /api/teacher/subjects?classId=" + classId);
+  
+  // Teacher Subjects
+  if (path.startsWith("/api/teacher/subjects") && method === "GET") {
     setJsonHeaders(res);
+    const classId = String(req.query.classId || "");
     const list = (demoData.subjectsByClass as any)[classId] || [];
     console.log("✅ GET /api/teacher/subjects - Retornando", list.length, "disciplinas");
-    res.status(200).json(list);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar disciplinas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar disciplinas", details: String(error) });
+    return res.json(list);
   }
-});
-
-// GET /api/teacher/students
-app.get("/api/teacher/students", (req, res) => {
-  try {
-    const classId = String(req.query.classId || "");
-    console.log("🔍 GET /api/teacher/students?classId=" + classId);
+  
+  // Teacher Students
+  if (path.startsWith("/api/teacher/students") && method === "GET") {
     setJsonHeaders(res);
+    const classId = String(req.query.classId || "");
     const list = (demoData.studentsByClass as any)[classId] || [];
     console.log("✅ GET /api/teacher/students - Retornando", list.length, "alunos");
-    res.status(200).json(list);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar alunos:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar alunos", details: String(error) });
+    return res.json(list);
   }
-});
-
-// GET /api/teacher/lessons
-app.get("/api/teacher/lessons", (req, res) => {
-  try {
+  
+  // Teacher Lessons
+  if (path.startsWith("/api/teacher/lessons") && method === "GET") {
+    setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
-    console.log("🔍 GET /api/teacher/lessons?classId=" + classId + "&subjectId=" + subjectId);
-    setJsonHeaders(res);
     const filtered = lessons.filter((l: any) => l.classId === classId && l.subjectId === subjectId);
     console.log("✅ GET /api/teacher/lessons - Retornando", filtered.length, "aulas");
-    res.status(200).json(filtered);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar aulas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar aulas", details: String(error) });
+    return res.json(filtered);
   }
-});
-
-// POST /api/teacher/lessons
-app.post("/api/teacher/lessons", async (req, res) => {
-  try {
-    setJsonHeaders(res);
-    
-    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body || {};
-    
-    if (!classId || !subjectId || !title) {
-      return res.status(400).json({ 
-        error: "validation_error",
-        message: "classId, subjectId e title são obrigatórios"
+  
+  if (path === "/api/teacher/lessons" && method === "POST") {
+    try {
+      setJsonHeaders(res);
+      const { classId, subjectId, title, content, lessonDate } = req.body || {};
+      
+      if (!classId || !subjectId || !title) {
+        return res.status(400).json({ 
+          error: "validation_error",
+          message: "classId, subjectId e title são obrigatórios"
+        });
+      }
+      
+      const id = `lesson-${Date.now()}`;
+      const newLesson = { 
+        id, 
+        classId: String(classId), 
+        subjectId: String(subjectId), 
+        title: String(title), 
+        content: content || "", 
+        lessonDate: lessonDate || new Date().toISOString().split('T')[0]
+      };
+      
+      lessons.push(newLesson);
+      console.log("✅ POST /api/teacher/lessons - Aula criada:", id);
+      return res.status(201).json(newLesson);
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ 
+        error: "Erro ao criar aula", 
+        message: error?.message || "Erro interno do servidor"
       });
     }
-    
-    const id = `lesson-${Date.now()}`;
-    const newLesson = { 
-      id, 
-      classId: String(classId), 
-      subjectId: String(subjectId), 
-      title: String(title), 
-      content: content || "", 
-      lessonDate: lessonDate ? String(lessonDate) : new Date().toISOString().split('T')[0],
-      startTime: startTime ? String(startTime) : undefined,
-      endTime: endTime ? String(endTime) : undefined,
-      objectives: objectives ? String(objectives) : undefined,
-      methodology: methodology ? String(methodology) : undefined,
-      resources: resources ? String(resources) : undefined,
-    };
-    
-    lessons.push(newLesson);
-    
-    console.log("✅ POST /api/teacher/lessons - Aula criada:", id);
-    res.status(201).json(newLesson);
-  } catch (error: any) {
-    console.error("❌ Erro ao criar aula:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ 
-      error: "Erro ao criar aula", 
-      message: error?.message || "Erro interno do servidor"
-    });
   }
-});
-
-// GET /api/teacher/grades/grid
-app.get("/api/teacher/grades/grid", (req, res) => {
-  try {
+  
+  // Teacher Grades Grid
+  if (path.startsWith("/api/teacher/grades/grid") && method === "GET") {
+    setJsonHeaders(res);
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
-    console.log("🔍 GET /api/teacher/grades/grid?classId=" + classId + "&subjectId=" + subjectId);
-    setJsonHeaders(res);
-    
     const students = (demoData.studentsByClass as any)[classId] || [];
     const grid = students.map((s: any) => {
       const key = `${classId}:${s.id}`;
@@ -485,83 +368,84 @@ app.get("/api/teacher/grades/grid", (req, res) => {
       const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
       return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
     });
-    
     console.log("✅ GET /api/teacher/grades/grid - Retornando", grid.length, "notas");
-    res.status(200).json(grid);
-  } catch (error: any) {
-    console.error("❌ Erro ao retornar notas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao carregar notas", details: String(error) });
+    return res.json(grid);
   }
-});
-
-// PUT /api/teacher/grades
-app.put("/api/teacher/grades", async (req, res) => {
-  try {
-    setJsonHeaders(res);
-    
-    const { classId, studentId, n1, n2, n3, n4, subjectId } = req.body;
-    
-    if (!classId || !studentId) {
-      return res.status(400).json({ error: "Campos obrigatórios: classId, studentId" });
+  
+  // Teacher Grades Update
+  if (path === "/api/teacher/grades" && method === "PUT") {
+    try {
+      setJsonHeaders(res);
+      const { classId, studentId, n1, n2, n3, n4, subjectId } = req.body;
+      
+      if (!classId || !studentId) {
+        return res.status(400).json({ error: "Campos obrigatórios: classId, studentId" });
+      }
+      
+      const validateGrade = (val: any) => {
+        const num = Number(val || 0);
+        return Math.max(0, Math.min(10, isNaN(num) ? 0 : num));
+      };
+      
+      const cleanN1 = validateGrade(n1);
+      const cleanN2 = validateGrade(n2);
+      const cleanN3 = validateGrade(n3);
+      const cleanN4 = validateGrade(n4);
+      const average = Number((cleanN1*0.2 + cleanN2*0.3 + cleanN3*0.25 + cleanN4*0.25).toFixed(2));
+      
+      const key = `${classId}:${studentId}`;
+      grades[key] = { n1: cleanN1, n2: cleanN2, n3: cleanN3, n4: cleanN4 };
+      
+      console.log("✅ PUT /api/teacher/grades - Notas atualizadas");
+      return res.json({ studentId, classId, subjectId, n1: cleanN1, n2: cleanN2, n3: cleanN3, n4: cleanN4, average });
+    } catch (error: any) {
+      setJsonHeaders(res);
+      return res.status(500).json({ error: "Erro ao atualizar notas", details: String(error) });
     }
-    
-    const validateGrade = (val: any) => {
-      const num = Number(val || 0);
-      return Math.max(0, Math.min(10, isNaN(num) ? 0 : num));
-    };
-    
-    const cleanN1 = validateGrade(n1);
-    const cleanN2 = validateGrade(n2);
-    const cleanN3 = validateGrade(n3);
-    const cleanN4 = validateGrade(n4);
-    const average = Number((cleanN1*0.2 + cleanN2*0.3 + cleanN3*0.25 + cleanN4*0.25).toFixed(2));
-    
-    const key = `${classId}:${studentId}`;
-    grades[key] = { n1: cleanN1, n2: cleanN2, n3: cleanN3, n4: cleanN4 };
-    
-    console.log("✅ PUT /api/teacher/grades - Notas atualizadas, média:", average);
-    res.status(200).json({ 
-      studentId, 
-      classId, 
-      subjectId, 
-      n1: cleanN1, 
-      n2: cleanN2, 
-      n3: cleanN3, 
-      n4: cleanN4, 
-      average 
-    });
-  } catch (error: any) {
-    console.error("❌ Erro ao atualizar notas:", error);
-    setJsonHeaders(res);
-    res.status(500).json({ error: "Erro ao atualizar notas", details: String(error) });
   }
-});
-
-// Handler para rotas não encontradas
-app.use("*", (req, res) => {
+  
+  // Rota não encontrada
   setJsonHeaders(res);
-  res.status(404).json({ 
+  console.log("❌ Rota não encontrada:", method, path);
+  return res.status(404).json({ 
     error: "Rota não encontrada", 
-    path: req.path || req.url,
-    method: req.method
+    path,
+    method
   });
-});
-
-// Criar handler serverless
-const handler = serverless(app, {
-  binary: ['image/*', 'application/pdf'],
-});
+}
 
 // Exportar handler para Vercel
-export default async function vercelHandler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    console.log(`🚀 [VERCEL] ${req.method} ${req.url || req.path}`);
-    return await handler(req, res);
+    // Na Vercel, o [...path] captura tudo após /api/ em req.query.path (array)
+    let path = "/api/";
+    
+    // Tentar diferentes formas de obter o path
+    if (req.query.path) {
+      // Forma 1: req.query.path (array do catch-all)
+      const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
+      path = `/api/${pathArray.join('/')}`;
+      console.log(`📋 [VERCEL] Path do query.path:`, path);
+    } else if (req.url) {
+      // Forma 2: req.url direto
+      path = req.url;
+      console.log(`📋 [VERCEL] Path do req.url:`, path);
+    }
+    
+    // Garantir que começa com /api/
+    if (!path.startsWith('/api/')) {
+      path = `/api${path === '/' ? '' : path}`;
+      console.log(`📋 [VERCEL] Path ajustado:`, path);
+    }
+    
+    // Garantir que req.url está correto para as rotas
+    req.url = path;
+    
+    return routeHandler(req, res, path);
   } catch (error: any) {
     console.error(`❌ [VERCEL] Erro:`, error);
     setJsonHeaders(res);
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao processar requisição",
       message: error?.message || "Erro interno",
       path: req.url || req.path,

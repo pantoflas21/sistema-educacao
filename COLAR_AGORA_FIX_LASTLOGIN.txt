@@ -1,0 +1,3 @@
+git add apps/backend/src/api.ts
+git commit -m "Correcao: Remove referencia a lastLogin que nao existe no schema"
+git push origin main

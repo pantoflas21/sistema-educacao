@@ -1,0 +1,6 @@
+git add vercel.json
+git commit -m "Correcao: Ajusta versao do Node.js para 18.x na Vercel"
+git push origin main
+
+
+

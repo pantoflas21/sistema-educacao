@@ -141,7 +141,7 @@ export default function HierarchyDashboard() {
     { href: "/admin", title: "Administrador", subtitle: "Configurações e usuários", accent: "from-slate-600 to-violet-600", icon: IconShield, indicator: `Saúde ${(adminQ.data?.systemHealth ?? 0)}%`, statusText: adminStatus, statusClass: adminStatusClass },
     { href: "/treasury", title: "Tesouraria", subtitle: "Financeiro e mensalidades", accent: "from-emerald-600 to-teal-600", icon: IconWallet, indicator: `R$ ${treasuryQ.data?.receita ?? 0}`, statusText: treasuryStatus, statusClass: treasuryStatusClass },
     { href: "/secretary", title: "Secretaria", subtitle: "Matrículas e documentos", accent: "from-cyan-600 to-teal-600", icon: IconOffice, indicator: `${(secStudentsQ.data||[]).length} alunos`, statusText: "Ativa", statusClass: "bg-cyan-600 text-white" },
-    { href: "/teacher", title: "Professor", subtitle: "Turmas, aulas e presença", accent: "from-teal-600 to-emerald-600", icon: IconBook, indicator: teacherActive?`Bimestre ${teacherActive.number} aberto`:"Sem bimestre", statusText: "Em curso", statusClass: "bg-teal-600 text-white" },
+    { href: "/teacher", title: "Professor", subtitle: "Turmas, aulas e presença", accent: "from-blue-500 to-indigo-600", icon: IconBook, indicator: teacherActive?`Bimestre ${teacherActive.number} aberto`:"Sem bimestre", statusText: "Em curso", statusClass: "bg-blue-600 text-white" },
     { href: "/student", title: "Aluno", subtitle: "Boletim e frequência", accent: "from-indigo-600 to-violet-600", icon: IconUser, indicator: `Média ${avg}`, statusText: studentStatus, statusClass: studentStatusClass }
   ];
   

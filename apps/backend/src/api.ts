@@ -7,8 +7,8 @@ import dotenv from "dotenv";
 import { authMiddleware, requireRole } from "./middleware/auth";
 import { signToken } from "./auth/jwt";
 import { db } from "./db";
-import { classes as classesTable, subjects as subjectsTable, users as usersTable, schools as schoolsTable } from "./db/schema";
-import { eq } from "drizzle-orm";
+import { classes as classesTable, subjects as subjectsTable, users as usersTable, schools as schoolsTable, lessons as lessonsTable, attendance as attendanceTable, grades as gradesTable, students as studentsTable } from "./db/schema";
+import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { env } from "./config/env";
 import { generalRateLimit, authRateLimit } from "./middleware/rateLimit";
@@ -22,10 +22,34 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// CORS configurado - PERMITE TODAS AS ORIGENS (Vercel)
+// CORS configurado - Usa origens específicas da configuração
 app.use(cors({ 
-  origin: "*", // Permitir todas as origens na Vercel
-  credentials: false, // Não precisa de credentials quando origin é *
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (mobile apps, Postman, etc)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    const allowedOrigins = env.CORS_ORIGIN;
+    
+    // Se não há origens configuradas e está em desenvolvimento, permitir localhost
+    if (allowedOrigins.length === 0 && env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // Verificar se a origem está na lista permitida
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    
+    // Em desenvolvimento, permitir localhost mesmo se não estiver na lista
+    if (env.NODE_ENV === 'development' && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
@@ -47,10 +71,22 @@ app.use(helmet({
 
 // OPTIONS handler para CORS - DEVE estar ANTES de outras rotas
 app.options("*", (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = env.CORS_ORIGIN;
+  
+  // Verificar se a origem é permitida
+  let allowedOrigin = '*';
+  if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
+    allowedOrigin = origin;
+  } else if (env.NODE_ENV === 'development' && origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    allowedOrigin = origin;
+  }
+  
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
   res.status(200).end();
 });
 
@@ -222,15 +258,32 @@ app.get("/api/teacher/terms", (req, res) => {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     // Log para debug
-    console.log("🔍 GET /api/teacher/terms - AUTH_DEMO:", process.env.AUTH_DEMO);
-    console.log("🔍 GET /api/teacher/terms - req.user:", (req as any).user);
+    console.log("🔍 GET /api/teacher/terms - AUTH_DEMO:", env.AUTH_DEMO);
+    console.log("🔍 GET /api/teacher/terms - DB disponível:", !!db);
     
-    const terms = demoData.terms;
-    console.log("✅ GET /api/teacher/terms - Retornando", terms.length, "bimestres");
-    console.log("📋 Dados:", JSON.stringify(terms, null, 2));
-    
-    // Retornar dados como JSON
-    res.status(200).json(terms);
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Em produção com banco, retornar vazio (bimestres devem ser criados via admin/secretary)
+      // Por enquanto, retornar estrutura padrão do ano letivo
+      const currentYear = new Date().getFullYear();
+      const terms = [
+        { id: `term1-${currentYear}`, number: 1, status: "active", startDate: `${currentYear}-02-01`, endDate: `${currentYear}-03-31` },
+        { id: `term2-${currentYear}`, number: 2, status: "locked", startDate: `${currentYear}-04-01`, endDate: `${currentYear}-05-31` },
+        { id: `term3-${currentYear}`, number: 3, status: "locked", startDate: `${currentYear}-06-01`, endDate: `${currentYear}-07-31` },
+        { id: `term4-${currentYear}`, number: 4, status: "locked", startDate: `${currentYear}-08-01`, endDate: `${currentYear}-09-30` }
+      ];
+      console.log("✅ GET /api/teacher/terms (DB) - Retornando", terms.length, "bimestres padrão");
+      res.status(200).json(terms);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      const terms = demoData.terms;
+      console.log("✅ GET /api/teacher/terms (DEMO) - Retornando", terms.length, "bimestres");
+      res.status(200).json(terms);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/teacher/terms - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar bimestres:", error);
     // GARANTIR que erro também retorna JSON
@@ -244,7 +297,7 @@ app.get("/api/teacher/terms", (req, res) => {
   }
 });
 
-app.get("/api/teacher/classes", (req, res) => {
+app.get("/api/teacher/classes", async (req, res) => {
   try {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -252,9 +305,29 @@ app.get("/api/teacher/classes", (req, res) => {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     const termId = String(req.query.termId || "");
-    const classes = demoData.classes.map(c => ({ ...c, termId }));
-    console.log("✅ GET /api/teacher/classes - Retornando", classes.length, "turmas para termId:", termId);
-    res.status(200).json(classes);
+    
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Buscar turmas do banco
+      const classesList = await db.select().from(classesTable);
+      const classes = classesList.map(c => ({
+        id: String(c.id),
+        name: c.name,
+        studentsCount: 0, // TODO: contar alunos da turma
+        termId
+      }));
+      console.log("✅ GET /api/teacher/classes (DB) - Retornando", classes.length, "turmas para termId:", termId);
+      res.status(200).json(classes);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      const classes = demoData.classes.map(c => ({ ...c, termId }));
+      console.log("✅ GET /api/teacher/classes (DEMO) - Retornando", classes.length, "turmas para termId:", termId);
+      res.status(200).json(classes);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/teacher/classes - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar turmas:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -263,7 +336,7 @@ app.get("/api/teacher/classes", (req, res) => {
   }
 });
 
-app.get("/api/teacher/subjects", (req, res) => {
+app.get("/api/teacher/subjects", async (req, res) => {
   try {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -271,39 +344,109 @@ app.get("/api/teacher/subjects", (req, res) => {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     const classId = String(req.query.classId || "");
-    const list = (demoData.subjectsByClass as any)[classId] || [];
-    console.log("✅ GET /api/teacher/subjects - Retornando", list.length, "disciplinas para classId:", classId);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json(list);
+    
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Buscar disciplinas associadas à turma via enrollments
+      // Por enquanto, retornar todas as disciplinas (pode ser filtrado depois)
+      const subjectsList = await db.select().from(subjectsTable);
+      const list = subjectsList.map(s => ({
+        id: String(s.id),
+        code: s.code,
+        name: s.name
+      }));
+      console.log("✅ GET /api/teacher/subjects (DB) - Retornando", list.length, "disciplinas para classId:", classId);
+      res.status(200).json(list);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      const list = (demoData.subjectsByClass as any)[classId] || [];
+      console.log("✅ GET /api/teacher/subjects (DEMO) - Retornando", list.length, "disciplinas para classId:", classId);
+      res.status(200).json(list);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/teacher/subjects - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar disciplinas:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(500).json({ error: "Erro ao carregar disciplinas", details: String(error) });
   }
 });
 
-app.get("/api/teacher/students", (req, res) => {
+app.get("/api/teacher/students", async (req, res) => {
   try {
-    const classId = String(req.query.classId || "");
-    const list = (demoData.studentsByClass as any)[classId] || [];
-    console.log("✅ GET /api/teacher/students - Retornando", list.length, "alunos para classId:", classId);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json(list);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    const classId = String(req.query.classId || "");
+    
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Buscar alunos via enrollments (não há tabela students separada)
+      // Por enquanto, retornar vazio - alunos devem ser criados via secretary primeiro
+      console.log("✅ GET /api/teacher/students (DB) - Retornando array vazio (alunos devem ser criados via secretary)");
+      res.status(200).json([]);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      const list = (demoData.studentsByClass as any)[classId] || [];
+      console.log("✅ GET /api/teacher/students (DEMO) - Retornando", list.length, "alunos para classId:", classId);
+      res.status(200).json(list);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/teacher/students - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar alunos:", error);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(500).json({ error: "Erro ao carregar alunos", details: String(error) });
   }
 });
 
-app.get("/api/teacher/lessons", (req, res) => {
+app.get("/api/teacher/lessons", async (req, res) => {
   try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
-    const list = lessons.filter(l => l.classId === classId && l.subjectId === subjectId);
-    console.log("✅ GET /api/teacher/lessons - Retornando", list.length, "aulas para classId:", classId, "subjectId:", subjectId);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json(list);
+    
+    if (db) {
+      // Usar banco de dados
+      const list = await db.select().from(lessonsTable)
+        .where(and(
+          eq(lessonsTable.classId, classId),
+          eq(lessonsTable.subjectId, subjectId)
+        ));
+      
+      const formatted = list.map(l => ({
+        id: String(l.id),
+        classId: l.classId,
+        subjectId: l.subjectId,
+        teacherId: l.teacherId,
+        title: l.title,
+        content: l.content || "",
+        lessonDate: l.lessonDate,
+        startTime: l.startTime,
+        endTime: l.endTime,
+        objectives: l.objectives,
+        methodology: l.methodology,
+        resources: l.resources
+      }));
+      
+      console.log("✅ GET /api/teacher/lessons (DB) - Retornando", formatted.length, "aulas");
+      res.status(200).json(formatted);
+    } else {
+      // Fallback para memória (modo demo)
+      const list = lessons.filter(l => l.classId === classId && l.subjectId === subjectId);
+      console.log("✅ GET /api/teacher/lessons (MEM) - Retornando", list.length, "aulas");
+      res.status(200).json(list);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar aulas:", error);
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -311,7 +454,7 @@ app.get("/api/teacher/lessons", (req, res) => {
   }
 });
 
-app.post("/api/teacher/lessons", (req, res) => {
+app.post("/api/teacher/lessons", validate(schemas.createLesson), async (req, res) => {
   try {
     // Garantir headers JSON e CORS
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -319,34 +462,62 @@ app.post("/api/teacher/lessons", (req, res) => {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body || {};
+    const { classId, subjectId, title, content, lessonDate, startTime, endTime, objectives, methodology, resources } = req.body;
+    const teacherId = (req as any).user?.sub || null;
     
-    // Validação básica
-    if (!classId || !subjectId || !title || !lessonDate) {
-      return res.status(400).json({ 
-        error: "Campos obrigatórios faltando", 
-        message: "classId, subjectId, title e lessonDate são obrigatórios",
-        received: { classId: !!classId, subjectId: !!subjectId, title: !!title, lessonDate: !!lessonDate }
-      });
+    if (db) {
+      // Salvar no banco de dados
+      const [inserted] = await db.insert(lessonsTable).values({
+        classId: String(classId),
+        subjectId: String(subjectId),
+        teacherId: teacherId ? String(teacherId) : null,
+        title: String(title),
+        content: content ? String(content) : null,
+        lessonDate: String(lessonDate),
+        startTime: startTime ? String(startTime) : null,
+        endTime: endTime ? String(endTime) : null,
+        objectives: objectives ? String(objectives) : null,
+        methodology: methodology ? String(methodology) : null,
+        resources: resources ? String(resources) : null
+      }).returning();
+      
+      const item = {
+        id: String(inserted.id),
+        classId: inserted.classId,
+        subjectId: inserted.subjectId,
+        teacherId: inserted.teacherId,
+        title: inserted.title,
+        content: inserted.content || "",
+        lessonDate: inserted.lessonDate,
+        startTime: inserted.startTime,
+        endTime: inserted.endTime,
+        objectives: inserted.objectives,
+        methodology: inserted.methodology,
+        resources: inserted.resources
+      };
+      
+      console.log("✅ POST /api/teacher/lessons (DB) - Aula criada:", item.id);
+      res.status(201).json(item);
+    } else {
+      // Fallback para memória (modo demo)
+      const id = `lesson-${Date.now()}`;
+      const item = { 
+        id, 
+        classId: String(classId), 
+        subjectId: String(subjectId), 
+        title: String(title), 
+        content: String(content || ""), 
+        lessonDate: String(lessonDate),
+        startTime: startTime ? String(startTime) : undefined,
+        endTime: endTime ? String(endTime) : undefined,
+        objectives: objectives ? String(objectives) : undefined,
+        methodology: methodology ? String(methodology) : undefined,
+        resources: resources ? String(resources) : undefined,
+      };
+      lessons.push(item);
+      console.log("✅ POST /api/teacher/lessons (MEM) - Aula criada:", item.id);
+      res.status(201).json(item);
     }
-    
-    const id = `lesson-${Date.now()}`;
-    const item = { 
-      id, 
-      classId: String(classId), 
-      subjectId: String(subjectId), 
-      title: String(title), 
-      content: String(content || ""), 
-      lessonDate: String(lessonDate),
-      startTime: startTime ? String(startTime) : undefined,
-      endTime: endTime ? String(endTime) : undefined,
-      objectives: objectives ? String(objectives) : undefined,
-      methodology: methodology ? String(methodology) : undefined,
-      resources: resources ? String(resources) : undefined,
-    };
-    lessons.push(item);
-    console.log("✅ POST /api/teacher/lessons - Aula criada:", item.id);
-    res.status(201).json(item);
   } catch (error: any) {
     console.error("❌ Erro ao criar aula:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -358,13 +529,40 @@ app.post("/api/teacher/lessons", (req, res) => {
   }
 });
 
-app.get("/api/teacher/attendance", (req, res) => {
+app.get("/api/teacher/attendance", async (req, res) => {
   try {
-    const dateKey = String(req.query.date || "");
-    const list = attendance[dateKey] || [];
-    console.log("✅ GET /api/teacher/attendance - Retornando", list.length, "presenças para data:", dateKey);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json(list);
+    
+    const dateKey = String(req.query.date || "");
+    const classId = String(req.query.classId || "");
+    const subjectId = String(req.query.subjectId || "");
+    
+    if (db && dateKey) {
+      // Usar banco de dados
+      const conditions: any[] = [eq(attendanceTable.date, dateKey)];
+      if (classId) conditions.push(eq(attendanceTable.classId, classId));
+      if (subjectId) conditions.push(eq(attendanceTable.subjectId, subjectId));
+      
+      const list = await db.select().from(attendanceTable)
+        .where(and(...conditions));
+      
+      const formatted = list.map(a => ({
+        studentId: a.studentId,
+        status: a.status,
+        date: a.date,
+        classId: a.classId,
+        subjectId: a.subjectId
+      }));
+      
+      console.log("✅ GET /api/teacher/attendance (DB) - Retornando", formatted.length, "presenças");
+      res.status(200).json(formatted);
+    } else {
+      // Fallback para memória (modo demo)
+      const list = attendance[dateKey] || [];
+      console.log("✅ GET /api/teacher/attendance (MEM) - Retornando", list.length, "presenças");
+      res.status(200).json(list);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar presenças:", error);
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -372,19 +570,20 @@ app.get("/api/teacher/attendance", (req, res) => {
   }
 });
 
-app.post("/api/teacher/attendance", (req, res) => {
+app.post("/api/teacher/attendance", validate(schemas.attendance), async (req, res) => {
   try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
     const { studentId, status, date, classId, subjectId } = req.body;
     
     // Validação
     if (!studentId || !status || !date || !classId || !subjectId) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "Campos obrigatórios: studentId, status, date, classId, subjectId" });
     }
     
     // Validar status
     if (!["P", "F", "J"].includes(String(status))) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "status_invalid" });
     }
     
@@ -394,13 +593,61 @@ app.post("/api/teacher/attendance", (req, res) => {
     const cleanClassId = String(classId).trim();
     const cleanSubjectId = String(subjectId).trim();
     
-    attendance[key] = attendance[key] || [];
-    const idx = attendance[key].findIndex(m => m.studentId === cleanStudentId && m.classId === cleanClassId && m.subjectId === cleanSubjectId);
-    const item = { studentId: cleanStudentId, status: status as "P" | "F" | "J", date: key, classId: cleanClassId, subjectId: cleanSubjectId } as const;
-    if (idx >= 0) attendance[key][idx] = item as any; else attendance[key].push(item as any);
-    console.log("✅ POST /api/teacher/attendance - Presença registrada:", item);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(201).json(item);
+    if (db) {
+      // Verificar se já existe
+      const existing = await db.select().from(attendanceTable)
+        .where(and(
+          eq(attendanceTable.studentId, cleanStudentId),
+          eq(attendanceTable.classId, cleanClassId),
+          eq(attendanceTable.subjectId, cleanSubjectId),
+          eq(attendanceTable.date, key)
+        )).limit(1);
+      
+      if (existing.length > 0) {
+        // Atualizar
+        const [updated] = await db.update(attendanceTable)
+          .set({ status: status as "P" | "F" | "J", updatedAt: new Date() })
+          .where(eq(attendanceTable.id, existing[0].id))
+          .returning();
+        
+        const item = {
+          studentId: updated.studentId,
+          status: updated.status,
+          date: updated.date,
+          classId: updated.classId,
+          subjectId: updated.subjectId
+        };
+        console.log("✅ POST /api/teacher/attendance (DB) - Presença atualizada");
+        res.status(200).json(item);
+      } else {
+        // Criar novo
+        const [inserted] = await db.insert(attendanceTable).values({
+          studentId: cleanStudentId,
+          classId: cleanClassId,
+          subjectId: cleanSubjectId,
+          date: key,
+          status: status as "P" | "F" | "J"
+        }).returning();
+        
+        const item = {
+          studentId: inserted.studentId,
+          status: inserted.status,
+          date: inserted.date,
+          classId: inserted.classId,
+          subjectId: inserted.subjectId
+        };
+        console.log("✅ POST /api/teacher/attendance (DB) - Presença registrada");
+        res.status(201).json(item);
+      }
+    } else {
+      // Fallback para memória (modo demo)
+      attendance[key] = attendance[key] || [];
+      const idx = attendance[key].findIndex(m => m.studentId === cleanStudentId && m.classId === cleanClassId && m.subjectId === cleanSubjectId);
+      const item = { studentId: cleanStudentId, status: status as "P" | "F" | "J", date: key, classId: cleanClassId, subjectId: cleanSubjectId } as const;
+      if (idx >= 0) attendance[key][idx] = item as any; else attendance[key].push(item as any);
+      console.log("✅ POST /api/teacher/attendance (MEM) - Presença registrada");
+      res.status(201).json(item);
+    }
   } catch (error) {
     console.error("❌ Erro ao registrar presença:", error);
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -408,20 +655,55 @@ app.post("/api/teacher/attendance", (req, res) => {
   }
 });
 
-app.get("/api/teacher/grades/grid", (req, res) => {
+app.get("/api/teacher/grades/grid", async (req, res) => {
   try {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
     const classId = String(req.query.classId || "");
     const subjectId = String(req.query.subjectId || "");
     const students = (demoData.studentsByClass as any)[classId] || [];
-    const grid = students.map((s: any) => {
-      const key = `${classId}:${s.id}`;
-      const g = grades[key] || { n1: 0, n2: 0, n3: 0, n4: 0 };
-      const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
-      return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
-    });
-    console.log("✅ GET /api/teacher/grades/grid - Retornando", grid.length, "notas para classId:", classId, "subjectId:", subjectId);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json(grid);
+    
+    if (db) {
+      // Buscar notas do banco
+      const gradesList = await db.select().from(gradesTable)
+        .where(and(
+          eq(gradesTable.classId, classId),
+          eq(gradesTable.subjectId, subjectId)
+        ));
+      
+      const gradesMap = new Map();
+      gradesList.forEach(g => {
+        gradesMap.set(g.studentId, {
+          n1: g.n1 || 0,
+          n2: g.n2 || 0,
+          n3: g.n3 || 0,
+          n4: g.n4 || 0,
+          average: g.average || 0
+        });
+      });
+      
+      const grid = students.map((s: any) => {
+        const g = gradesMap.get(s.id) || { n1: 0, n2: 0, n3: 0, n4: 0, average: 0 };
+        if (!g.average && (g.n1 || g.n2 || g.n3 || g.n4)) {
+          g.average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
+        }
+        return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average: g.average };
+      });
+      
+      console.log("✅ GET /api/teacher/grades/grid (DB) - Retornando", grid.length, "notas");
+      res.status(200).json(grid);
+    } else {
+      // Fallback para memória (modo demo)
+      const grid = students.map((s: any) => {
+        const key = `${classId}:${s.id}`;
+        const g = grades[key] || { n1: 0, n2: 0, n3: 0, n4: 0 };
+        const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
+        return { studentId: s.id, name: s.name, n1: g.n1, n2: g.n2, n3: g.n3, n4: g.n4, average };
+      });
+      console.log("✅ GET /api/teacher/grades/grid (MEM) - Retornando", grid.length, "notas");
+      res.status(200).json(grid);
+    }
   } catch (error) {
     console.error("❌ Erro ao retornar notas:", error);
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -429,13 +711,15 @@ app.get("/api/teacher/grades/grid", (req, res) => {
   }
 });
 
-app.put("/api/teacher/grades", (req, res) => {
+app.put("/api/teacher/grades", validate(schemas.updateGrades), async (req, res) => {
   try {
-    const { classId, studentId, n1, n2, n3, n4 } = req.body;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    const { classId, studentId, n1, n2, n3, n4, subjectId, termId } = req.body;
     
     // Validação
     if (!classId || !studentId) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
       return res.status(400).json({ error: "Campos obrigatórios: classId, studentId" });
     }
     
@@ -445,18 +729,69 @@ app.put("/api/teacher/grades", (req, res) => {
       return Math.max(0, Math.min(10, isNaN(num) ? 0 : num));
     };
     
-    const key = `${String(classId).trim()}:${String(studentId).trim()}`;
-    grades[key] = { 
-      n1: validateGrade(n1), 
-      n2: validateGrade(n2), 
-      n3: validateGrade(n3), 
-      n4: validateGrade(n4) 
-    };
-    const g = grades[key];
-    const average = Number((g.n1*0.2 + g.n2*0.3 + g.n3*0.25 + g.n4*0.25).toFixed(2));
-    console.log("✅ PUT /api/teacher/grades - Notas atualizadas para:", key, "média:", average);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).json({ ok: true, average });
+    const cleanN1 = validateGrade(n1);
+    const cleanN2 = validateGrade(n2);
+    const cleanN3 = validateGrade(n3);
+    const cleanN4 = validateGrade(n4);
+    const average = Number((cleanN1*0.2 + cleanN2*0.3 + cleanN3*0.25 + cleanN4*0.25).toFixed(2));
+    
+    if (db) {
+      // Verificar se já existe
+      const conditions: any[] = [
+        eq(gradesTable.classId, String(classId)),
+        eq(gradesTable.studentId, String(studentId))
+      ];
+      if (subjectId) conditions.push(eq(gradesTable.subjectId, String(subjectId)));
+      
+      const existing = await db.select().from(gradesTable)
+        .where(and(...conditions))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        // Atualizar
+        const [updated] = await db.update(gradesTable)
+          .set({
+            n1: cleanN1,
+            n2: cleanN2,
+            n3: cleanN3,
+            n4: cleanN4,
+            average: average,
+            updatedAt: new Date()
+          })
+          .where(eq(gradesTable.id, existing[0].id))
+          .returning();
+        
+        console.log("✅ PUT /api/teacher/grades (DB) - Notas atualizadas, média:", average);
+        res.status(200).json({ n1: updated.n1, n2: updated.n2, n3: updated.n3, n4: updated.n4, average: updated.average });
+      } else {
+        // Criar novo
+        const [inserted] = await db.insert(gradesTable).values({
+          classId: String(classId),
+          studentId: String(studentId),
+          subjectId: subjectId ? String(subjectId) : null,
+          termId: termId ? String(termId) : null,
+          n1: cleanN1,
+          n2: cleanN2,
+          n3: cleanN3,
+          n4: cleanN4,
+          average: average
+        }).returning();
+        
+        console.log("✅ PUT /api/teacher/grades (DB) - Notas criadas, média:", average);
+        res.status(201).json({ n1: inserted.n1, n2: inserted.n2, n3: inserted.n3, n4: inserted.n4, average: inserted.average });
+      }
+    } else {
+      // Fallback para memória (modo demo)
+      const key = `${String(classId).trim()}:${String(studentId).trim()}`;
+      grades[key] = { 
+        n1: cleanN1, 
+        n2: cleanN2, 
+        n3: cleanN3, 
+        n4: cleanN4 
+      };
+      console.log("✅ PUT /api/teacher/grades (MEM) - Notas atualizadas, média:", average);
+      res.status(200).json({ ok: true, average });
+    }
   } catch (error) {
     console.error("❌ Erro ao atualizar notas:", error);
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -613,14 +948,38 @@ let secTerms: { number: number; startDate: string; endDate: string; status: "ope
 ];
 
 // GET /api/secretary/students - Listar alunos (CORRIGIDA)
-app.get("/api/secretary/students", (req, res) => {
+app.get("/api/secretary/students", async (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.status(200).json(secStudents);
+    
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Buscar alunos do banco
+      const studentsList = await db.select().from(studentsTable);
+      const list = studentsList.map(s => ({
+        id: String(s.id),
+        name: s.name,
+        cpf: s.cpf || "",
+        rg: s.rg,
+        birthDate: s.birthDate,
+        classId: s.classId ? String(s.classId) : undefined,
+        matricula: s.matricula
+      }));
+      console.log("✅ GET /api/secretary/students (DB) - Retornando", list.length, "alunos");
+      res.status(200).json(list);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      console.log("✅ GET /api/secretary/students (DEMO) - Retornando", secStudents.length, "alunos");
+      res.status(200).json(secStudents);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/secretary/students - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
+    }
   } catch (error: any) {
     console.error("❌ Erro ao listar alunos:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -641,7 +1000,7 @@ app.post("/api/secretary/students", async (req, res) => {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    const { name, cpf, rg, birthDate, classId, address, guardians, medicalInfo } = req.body || {};
+    const { name, cpf, rg, birthDate, classId, address, guardians, medicalInfo, matricula } = req.body || {};
     
     // Validação básica
     if (!name || !cpf) {
@@ -651,22 +1010,56 @@ app.post("/api/secretary/students", async (req, res) => {
       });
     }
     
-    const id = `stu-${Date.now()}`;
-    const s = { 
-      id, 
-      name: String(name), 
-      cpf: String(cpf), 
-      rg: rg ? String(rg) : undefined, 
-      birthDate: birthDate ? String(birthDate) : undefined, 
-      classId: classId ? String(classId) : undefined,
-      address: address || undefined,
-      guardians: guardians || undefined,
-      medicalInfo: medicalInfo || undefined,
-    };
-    secStudents.push(s);
-    
-    console.log("✅ POST /api/secretary/students - Aluno criado:", id);
-    res.status(201).json(s);
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
+      // Salvar no banco
+      const [inserted] = await db.insert(studentsTable).values({
+        name: String(name),
+        cpf: cpf ? String(cpf) : null,
+        rg: rg ? String(rg) : null,
+        birthDate: birthDate ? String(birthDate) : null,
+        classId: classId ? parseInt(String(classId), 10) : null,
+        address: address ? String(address) : null,
+        guardians: guardians ? JSON.stringify(guardians) : null,
+        medicalInfo: medicalInfo ? JSON.stringify(medicalInfo) : null,
+        matricula: matricula ? String(matricula) : null
+      }).returning();
+      
+      const s = {
+        id: String(inserted.id),
+        name: inserted.name,
+        cpf: inserted.cpf || "",
+        rg: inserted.rg,
+        birthDate: inserted.birthDate,
+        classId: inserted.classId ? String(inserted.classId) : undefined,
+        matricula: inserted.matricula
+      };
+      
+      console.log("✅ POST /api/secretary/students (DB) - Aluno criado:", s.id);
+      res.status(201).json(s);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar memória
+      const id = `stu-${Date.now()}`;
+      const s = { 
+        id, 
+        name: String(name), 
+        cpf: String(cpf), 
+        rg: rg ? String(rg) : undefined, 
+        birthDate: birthDate ? String(birthDate) : undefined, 
+        classId: classId ? String(classId) : undefined,
+        matricula: matricula || undefined
+      };
+      secStudents.push(s);
+      
+      console.log("✅ POST /api/secretary/students (DEMO) - Aluno criado:", id);
+      res.status(201).json(s);
+    } else {
+      // Sem banco e sem demo - retornar erro
+      res.status(503).json({ 
+        error: "database_unavailable",
+        message: "Banco de dados não disponível e modo demo desabilitado"
+      });
+    }
   } catch (error: any) {
     console.error("❌ Erro ao criar aluno:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -703,15 +1096,21 @@ app.get("/api/secretary/classes", async (req, res) => {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    if (db) {
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
       const rows = await db.select().from(classesTable);
-      const classes = rows.map((r: any) => ({ id: r.code, name: r.name, capacity: r.capacity, shift: r.shift }));
-      console.log("✅ GET /api/secretary/classes - Retornando", classes.length, "turmas");
-      return res.status(200).json(classes);
+      const classes = rows.map((r: any) => ({ id: String(r.id), code: r.code, name: r.name, capacity: r.capacity || 40, shift: r.shift || "manha" }));
+      console.log("✅ GET /api/secretary/classes (DB) - Retornando", classes.length, "turmas");
+      res.status(200).json(classes);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      console.log("✅ GET /api/secretary/classes (DEMO) - Retornando", secClasses.length, "turmas");
+      res.status(200).json(secClasses);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/secretary/classes - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
     }
-    
-    console.log("✅ GET /api/secretary/classes - Retornando", secClasses.length, "turmas (demo)");
-    res.status(200).json(secClasses);
   } catch (error: any) {
     console.error("❌ Erro ao listar turmas:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -724,7 +1123,7 @@ app.get("/api/secretary/classes", async (req, res) => {
 });
 
 // POST /api/secretary/classes - Criar turma (CORRIGIDA)
-app.post("/api/secretary/classes", async (req, res) => {
+app.post("/api/secretary/classes", validate(schemas.createClass), async (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -802,15 +1201,21 @@ app.get("/api/secretary/subjects", async (req, res) => {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
-    if (db) {
+    // Estratégia: usar banco primeiro, fallback apenas em modo demo
+    if (db && !env.AUTH_DEMO) {
       const rows = await db.select().from(subjectsTable);
-      const subjects = rows.map((r: any) => ({ id: r.code, code: r.code, name: r.name, workload: r.workload }));
-      console.log("✅ GET /api/secretary/subjects - Retornando", subjects.length, "disciplinas");
-      return res.status(200).json(subjects);
+      const subjects = rows.map((r: any) => ({ id: String(r.id), code: r.code, name: r.name, workload: r.workload || 4 }));
+      console.log("✅ GET /api/secretary/subjects (DB) - Retornando", subjects.length, "disciplinas");
+      res.status(200).json(subjects);
+    } else if (env.AUTH_DEMO) {
+      // Modo demo - usar dados fictícios
+      console.log("✅ GET /api/secretary/subjects (DEMO) - Retornando", secSubjects.length, "disciplinas");
+      res.status(200).json(secSubjects);
+    } else {
+      // Sem banco e sem demo - retornar vazio
+      console.log("✅ GET /api/secretary/subjects - Retornando array vazio (sem banco, sem demo)");
+      res.status(200).json([]);
     }
-    
-    console.log("✅ GET /api/secretary/subjects - Retornando", secSubjects.length, "disciplinas (demo)");
-    res.status(200).json(secSubjects);
   } catch (error: any) {
     console.error("❌ Erro ao listar disciplinas:", error);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -823,7 +1228,7 @@ app.get("/api/secretary/subjects", async (req, res) => {
 });
 
 // POST /api/secretary/subjects - Criar disciplina (CORRIGIDA)
-app.post("/api/secretary/subjects", async (req, res) => {
+app.post("/api/secretary/subjects", validate(schemas.createSubject), async (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -1072,7 +1477,7 @@ app.post("/api/secretary/class-subjects", (req, res) => {
 });
 
 // POST /api/secretary/enrollments - Matricular aluno (CORRIGIDA)
-app.post("/api/secretary/enrollments", (req, res) => {
+app.post("/api/secretary/enrollments", validate(schemas.createEnrollment), (req, res) => {
   try {
     // Garantir headers JSON e CORS ANTES de tudo
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -1556,7 +1961,7 @@ app.get("/api/secretary/lesson-plans", (req, res) => {
   }
 });
 
-app.post("/api/secretary/lesson-plans", (req, res) => {
+app.post("/api/secretary/lesson-plans", validate(schemas.lessonPlan), (req, res) => {
   try {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -1593,7 +1998,7 @@ app.post("/api/secretary/lesson-plans", (req, res) => {
   }
 });
 
-app.put("/api/secretary/lesson-plans/:id/review", (req, res) => {
+app.put("/api/secretary/lesson-plans/:id/review", validate(schemas.reviewLessonPlan), (req, res) => {
   try {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");

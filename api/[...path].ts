@@ -42,23 +42,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Criar objeto Express compatível
-    const url = req.url || "/";
-    // As rotas do Express já começam com /api/, então mantemos o path completo
-    // Quando a Vercel usa [...path].ts, req.url já inclui /api/...
+    // CORREÇÃO: Processar path corretamente
+    // Na Vercel com [...path].ts, req.url já vem com /api/ incluído
+    let url = req.url || "/";
+    
+    // Remover query string para obter o path
     let path = url.split("?")[0] || "/";
     
-    // Garantir que path começa com /api/
-    if (!path.startsWith("/api/")) {
-      path = `/api${path}`;
+    // CORREÇÃO: Não adicionar /api/ se já existir, mas garantir que começa com /
+    if (!path.startsWith("/")) {
+      path = `/${path}`;
     }
     
-    console.log(`🔍 Criando Express Req: ${method} ${path} (url: ${url})`);
+    // Se não começar com /api/, adicionar (para casos onde req.url não inclui)
+    if (!path.startsWith("/api/")) {
+      // Se for uma rota de API mas não tem /api/, adicionar
+      if (path === "/" || !path.includes("/api")) {
+        path = `/api${path === "/" ? "" : path}`;
+      }
+    }
+    
+    console.log(`🔍 Path processado: ${path} (url original: ${url})`);
     
     const expressReq: any = {
       method: method,
-      url: url,
-      path: path,
+      url: path, // CORREÇÃO: Usar path processado
+      path: path, // CORREÇÃO: Usar path processado
       query: req.query || {},
       body: parsedBody,
       headers: req.headers || {},
@@ -71,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const lower = name.toLowerCase();
         return req.headers?.[lower] || req.headers?.[name];
       },
-      originalUrl: url,
+      originalUrl: path, // CORREÇÃO: Usar path processado
       baseUrl: "",
       route: undefined,
     };
@@ -149,7 +158,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!responseHandled && !res.writableEnded) {
           responseHandled = true;
           console.warn("⚠️ Rota não encontrada:", method, path);
-          res.status(404).json({ error: "Rota não encontrada", method, path: req.url });
+          res.status(404).json({ 
+            error: "Rota não encontrada", 
+            method, 
+            path: path,
+            url: req.url,
+            hint: "Verifique se a rota está definida no backend"
+          });
         }
         resolve();
       };

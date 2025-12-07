@@ -1,0 +1,6 @@
+git add apps/backend/src/api.ts api/[...path].ts
+git commit -m "Correcao final: CORS e rotas de criacao - Erro 405 resolvido"
+git push origin main
+
+
+

@@ -58,7 +58,7 @@ export default function TeacherClasses() {
         </div>
 
         {/* Header */}
-        <div className="card-gradient from-orange-500 via-rose-500 to-pink-600 p-8 mb-8 fade-in gradient-animated">
+        <div className="card-gradient from-blue-500 via-blue-600 to-indigo-600 p-8 mb-8 fade-in gradient-animated">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-3">
@@ -89,7 +89,7 @@ export default function TeacherClasses() {
         {/* Grid de Turmas */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-rose-500 rounded-full"></span>
+            <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
             Suas Turmas
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -97,7 +97,7 @@ export default function TeacherClasses() {
               <Link key={classItem.id} href={`/teacher/${termId}/classes/${classItem.id}/subjects`}>
                 <div className="card-modern p-6 group hover:scale-[1.02] transition-all fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition-transform">
                       🏫
                     </div>
                     <div className="flex-1 min-w-0">

@@ -1,0 +1,6 @@
+git add api/[...path].ts apps/frontend/src/pages/AdminDashboard.tsx
+git commit -m "Correcao: Remove /api do path e melhora tratamento de erros"
+git push origin main
+
+
+

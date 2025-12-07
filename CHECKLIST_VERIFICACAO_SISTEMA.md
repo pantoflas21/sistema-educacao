@@ -172,3 +172,4 @@ curl https://SEU_DOMINIO.vercel.app/api/statistics/overview
 **Última Atualização:** 2025-01-27  
 **Versão:** 1.0.0
 
+

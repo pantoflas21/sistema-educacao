@@ -112,3 +112,6 @@ Acesse: `https://sistema-educacao.vercel.app/login`
 **Data:** 2025-01-27  
 **Status:** ✅ Pronto para Deploy
 
+
+
+

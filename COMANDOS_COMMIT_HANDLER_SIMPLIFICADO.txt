@@ -1,0 +1,6 @@
+git add api/[...path].ts
+git commit -m "Correcao: Handler Vercel simplificado para resolver erro 405"
+git push origin main
+
+
+

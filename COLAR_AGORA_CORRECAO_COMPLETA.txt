@@ -1,0 +1,3 @@
+git add apps/backend/src/api.ts apps/frontend/src/main.tsx apps/frontend/src/pages/AdminDashboard.tsx tsconfig.json
+git commit -m "Correcao urgente: Melhora tratamento de erros, corrige lastLogin e adiciona tsconfig"
+git push origin main

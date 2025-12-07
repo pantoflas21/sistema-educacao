@@ -1,0 +1,6 @@
+git add vercel.json
+git commit -m "Correcao critica: vercel.json - Rotas /api/* agora funcionam corretamente"
+git push origin main
+
+
+

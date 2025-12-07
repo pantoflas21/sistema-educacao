@@ -62,3 +62,6 @@ Certifique-se de que `AUTH_DEMO=true` está configurado na Vercel:
 **Prioridade:** 🔴 URGENTE  
 **Data:** 2025-01-27
 
+
+
+

@@ -1,18 +1,21 @@
 # Script PowerShell para fazer commit e push das correções
 # Execute este script no PowerShell dentro da pasta do projeto
 
+# Configurar encoding UTF-8 para evitar problemas com caracteres especiais
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 Write-Host "🚀 Iniciando commit das correções..." -ForegroundColor Green
 
-# Navegar para o diretório do projeto
-$projectPath = "C:\Users\Claiton\Desktop\SISTEMA EDUCAÇÃO CURSOR"
-Set-Location $projectPath
-
-Write-Host "📁 Diretório atual: $(Get-Location)" -ForegroundColor Cyan
+# Obter diretório atual (já estamos na pasta do projeto)
+$currentPath = Get-Location
+Write-Host "📁 Diretório atual: $currentPath" -ForegroundColor Cyan
 
 # Verificar se estamos no diretório correto
 if (-not (Test-Path "apps\frontend\src\lib\authLocal.ts")) {
     Write-Host "❌ Erro: Não encontrei os arquivos do projeto!" -ForegroundColor Red
-    Write-Host "Certifique-se de estar na pasta: $projectPath" -ForegroundColor Yellow
+    Write-Host "Certifique-se de estar na pasta do projeto antes de executar este script." -ForegroundColor Yellow
+    Write-Host "Execute: cd 'C:\Users\Claiton\Desktop\SISTEMA EDUCAÇÃO CURSOR'" -ForegroundColor Yellow
     exit 1
 }
 
@@ -70,8 +73,8 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Write-Host "`n🔗 Verificando remote..." -ForegroundColor Cyan
-$remote = git remote -v
-if ($remote) {
+$remote = git remote -v 2>&1
+if ($remote -and $remote -notmatch "fatal") {
     Write-Host "✅ Remote configurado:" -ForegroundColor Green
     Write-Host $remote -ForegroundColor Cyan
 } else {

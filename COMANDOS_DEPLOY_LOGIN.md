@@ -88,3 +88,6 @@ Certifique-se de que a variável `AUTH_DEMO=true` está configurada na Vercel:
 
 **Pronto!** Após o push, o sistema estará atualizado na Vercel. 🎉
 
+
+
+

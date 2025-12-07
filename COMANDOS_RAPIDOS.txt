@@ -6,3 +6,4 @@ git commit -m "FIX: Corrige login lento e erro 405 em formulários - Adiciona ti
 
 git push -u origin main
 
+

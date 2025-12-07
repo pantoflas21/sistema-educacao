@@ -1,0 +1,6 @@
+git add api/[...path].ts
+git commit -m "Debug: Adiciona logs detalhados para diagnosticar erro 405"
+git push origin main
+
+
+

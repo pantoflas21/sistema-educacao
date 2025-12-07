@@ -119,10 +119,81 @@ export const schemas = {
   updateGrades: z.object({
     classId: z.string().min(1).max(100),
     studentId: z.string().min(1).max(100),
+    subjectId: z.string().max(100).optional(),
+    termId: z.string().max(100).optional(),
     n1: z.number().min(0).max(10),
     n2: z.number().min(0).max(10),
     n3: z.number().min(0).max(10),
     n4: z.number().min(0).max(10)
+  }),
+  
+  attendance: z.object({
+    studentId: z.string().min(1).max(100),
+    classId: z.string().min(1).max(100),
+    subjectId: z.string().min(1).max(100),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    status: z.enum(['P', 'F', 'J'])
+  }),
+  
+  createSchool: z.object({
+    name: z.string().min(1).max(256),
+    city: z.string().max(128).optional(),
+    state: z.string().max(64).optional()
+  }),
+  
+  createClass: z.object({
+    code: z.string().min(1).max(64),
+    name: z.string().min(1).max(128),
+    capacity: z.number().int().min(1).max(100).optional(),
+    shift: z.string().max(32).optional(),
+    schoolId: z.number().int().optional()
+  }),
+  
+  createSubject: z.object({
+    code: z.string().min(1).max(64),
+    name: z.string().min(1).max(256),
+    workload: z.number().int().min(1).max(40).optional()
+  }),
+  
+  createStudent: z.object({
+    name: z.string().min(1).max(200),
+    matricula: z.string().max(50).optional(),
+    email: z.string().email().max(255).optional(),
+    birthDate: z.string().max(10).optional(),
+    classId: z.string().min(1).max(100)
+  }),
+  
+  createEnrollment: z.object({
+    studentId: z.number().int().positive(),
+    classId: z.number().int().positive(),
+    subjectId: z.number().int().positive(),
+    enrollmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+  }),
+  
+  createInvoice: z.object({
+    studentId: z.number().int().positive(),
+    classId: z.number().int().positive(),
+    period: z.string().regex(/^\d{4}-\d{2}$/),
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    total: z.number().int().positive(),
+    status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).optional()
+  }),
+  
+  lessonPlan: z.object({
+    teacherId: z.string().min(1).max(100),
+    classId: z.string().min(1).max(100),
+    subjectId: z.string().min(1).max(100),
+    category: z.enum(['educacao-infantil', 'fundamental-1', 'fundamental-2', 'ensino-medio']),
+    title: z.string().min(1).max(200),
+    content: z.string().max(50000).optional(),
+    objectives: z.string().max(2000).optional(),
+    methodology: z.string().max(2000).optional(),
+    resources: z.string().max(2000).optional()
+  }),
+  
+  reviewLessonPlan: z.object({
+    status: z.enum(['approved', 'rejected', 'revision']),
+    feedback: z.string().max(2000).optional()
   })
 };
 

@@ -1,0 +1,6 @@
+git add apps/frontend/src/pages/LoginPage.tsx
+git commit -m "Correcao: Adiciona verificacao de autenticacao na LoginPage para redirecionar se ja autenticado"
+git push origin main
+
+
+

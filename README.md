@@ -6,10 +6,26 @@ Sistema completo de gestão educacional desenvolvido para gerenciar escolas, alu
 
 ## 🌟 Características
 
-- ✅ **Gestão Completa**: Administração, Secretaria, Tesouraria, Professores, Alunos e Secretaria de Educação
-- ✅ **Interface Moderna**: Design responsivo e intuitivo
-- ✅ **Multi-plataforma**: Funciona em desktop, tablet e mobile
+- ✅ **Gestão Completa**: 6 painéis especializados (Administração, Secretaria, Tesouraria, Professores, Alunos e Secretaria de Educação)
+- ✅ **Interface Moderna**: Design responsivo, intuitivo e acessível
+- ✅ **Multi-plataforma**: Funciona perfeitamente em desktop, tablet e mobile
+- ✅ **Segurança Robusta**: JWT, validação de entrada, CORS configurado, rate limiting
+- ✅ **Persistência de Dados**: Banco de dados PostgreSQL com Drizzle ORM
 - ✅ **Deploy Automático**: Pronto para produção na Vercel
+- ✅ **Pronto para Comercialização**: Sistema completo e testado
+
+## 📋 Hierarquia do Sistema
+
+### Escolas Públicas:
+- **Secretário de Educação** → Gestão municipal da rede (múltiplas escolas)
+- **Administrador** → Gestão da escola individual
+- **Tesouraria/Secretaria/Professor/Aluno** → Operações diárias
+
+### Escolas Privadas:
+- **Administrador** → Dono/diretor da escola
+- **Tesouraria/Secretaria/Professor/Aluno** → Operações diárias
+
+**Nota Importante:** Planos de aula são recebidos e avaliados pela **Secretaria da Escola**, não pelo Secretário de Educação.
 
 ## 🚀 Início Rápido
 
@@ -90,10 +106,17 @@ aletheia/
    - Selecione seu repositório do GitHub
    - A Vercel detectará automaticamente a configuração
 
-3. **Configure Variáveis de Ambiente**
-   - `AUTH_DEMO=true` (para modo demonstração)
-   - `DATABASE_URL` (se usar banco de dados)
-   - `JWT_SECRET` (para produção)
+3. **Configure Variáveis de Ambiente (OBRIGATÓRIAS)**
+   
+   **CRÍTICO PARA PRODUÇÃO:**
+   - `JWT_SECRET` - String segura com mínimo de 32 caracteres (OBRIGATÓRIO)
+   - `CORS_ORIGIN` - URLs permitidas separadas por vírgula (ex: `https://seu-dominio.vercel.app`)
+   - `DATABASE_URL` - URL do PostgreSQL (obrigatório para persistência de dados)
+   - `NODE_ENV=production` - Ambiente de produção
+   
+   **OPCIONAL:**
+   - `AUTH_DEMO=true` - Apenas para desenvolvimento/testes (NÃO usar em produção)
+   - `JWT_EXPIRES_IN=7d` - Tempo de expiração do token (padrão: 7 dias)
 
 4. **Deploy!**
    - Clique em "Deploy"
@@ -124,6 +147,7 @@ O Aletheia utiliza uma paleta de cores moderna:
 - Matrículas e transferências
 - Calendário escolar
 - Geração de documentos
+- **Receber e avaliar planos de aula dos professores**
 
 ### 💰 Tesouraria
 - Planos de mensalidade
@@ -146,13 +170,37 @@ O Aletheia utiliza uma paleta de cores moderna:
 - Sistema PedaCoins
 - Chat com professores
 
-### 🏛️ Secretaria de Educação
-- Gestão municipal de escolas
-- Relatórios e métricas
-- Planejamento educacional
+### 🏛️ Secretaria de Educação (Apenas Escolas Públicas)
+- Gestão municipal de escolas (múltiplas escolas)
+- Relatórios e métricas consolidados
+- Planejamento educacional municipal
 - Rankings e indicadores
+- **NÃO recebe planos de aula** (função da Secretaria da Escola)
 
-## 🔐 Modo Demo
+## 🔐 Segurança
+
+### Configuração de Produção
+
+**⚠️ IMPORTANTE:** Para produção, configure as seguintes variáveis de ambiente:
+
+1. **JWT_SECRET** (OBRIGATÓRIO)
+   - Mínimo de 32 caracteres
+   - Use uma string aleatória e segura
+   - Exemplo: `openssl rand -base64 32`
+
+2. **CORS_ORIGIN** (OBRIGATÓRIO)
+   - Lista de origens permitidas separadas por vírgula
+   - Exemplo: `https://seu-dominio.vercel.app,https://www.seu-dominio.com`
+
+3. **DATABASE_URL** (OBRIGATÓRIO para persistência)
+   - URL completa do PostgreSQL
+   - Exemplo: `postgresql://user:password@host:5432/database`
+
+4. **NODE_ENV=production**
+   - Define ambiente de produção
+   - Desabilita modo demo automaticamente
+
+### Modo Demo (Apenas Desenvolvimento)
 
 Para testes rápidos, o sistema tem modo demo ativado com `AUTH_DEMO=true`:
 
@@ -163,6 +211,8 @@ Para testes rápidos, o sistema tem modo demo ativado com `AUTH_DEMO=true`:
 - Outros emails → Perfil Admin
 
 Senha: qualquer valor (não é validada no modo demo)
+
+**⚠️ NUNCA use `AUTH_DEMO=true` em produção!**
 
 ## 🛠️ Scripts Disponíveis
 
@@ -186,11 +236,46 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
+## 🗄️ Banco de Dados
+
+### Migrations
+
+O sistema usa Drizzle ORM para gerenciar o banco de dados. As migrations estão em `apps/backend/drizzle/migrations/`.
+
+Para executar migrations:
+```bash
+cd apps/backend
+npm run drizzle-kit migrate
+```
+
+### Tabelas Principais
+
+- `users` - Usuários do sistema
+- `schools` - Escolas
+- `classes` - Turmas
+- `subjects` - Disciplinas
+- `enrollments` - Matrículas
+- `invoices` - Faturas/Mensalidades
+- `lessons` - Aulas criadas pelos professores
+- `attendance` - Presenças dos alunos
+- `grades` - Notas dos alunos
+
+## 🔒 Melhorias de Segurança Implementadas
+
+- ✅ JWT Secret obrigatório e validado
+- ✅ CORS configurado com origens específicas
+- ✅ Validação de entrada com Zod em todos os endpoints
+- ✅ Rate limiting implementado
+- ✅ Sanitização de dados de entrada
+- ✅ Headers de segurança (Helmet)
+- ✅ Proteção contra enumeração de usuários
+
 ## 📖 Documentação Adicional
 
 - `GUIA_COMPLETO_INSTALACAO_E_DEPLOY.md` - Guia passo a passo completo
 - `DEPLOY_VERCEL_FIX.md` - Correções de deploy
 - `DEPLOY_VERCEL.md` - Guia de deploy na Vercel
+- `RESUMO_MELHORIAS_IMPLEMENTADAS.md` - Resumo das melhorias recentes
 
 ## 🤝 Contribuindo
 

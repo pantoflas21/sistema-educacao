@@ -28,11 +28,11 @@ function validateEnv(): EnvConfig {
   // JWT Secret - CRÍTICO em produção
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
-    if (process.env.NODE_ENV === 'production') {
-      errors.push('❌ JWT_SECRET é obrigatório em produção!');
-    } else {
-      console.warn('⚠️ JWT_SECRET não configurado. Usando secret temporário (NÃO SEGURO PARA PRODUÇÃO)');
-    }
+    errors.push('❌ JWT_SECRET é obrigatório! Configure uma string segura com pelo menos 32 caracteres.');
+  } else if (jwtSecret.length < 32) {
+    errors.push('❌ JWT_SECRET deve ter pelo menos 32 caracteres para segurança adequada.');
+  } else if (jwtSecret === 'dev-secret-change' || jwtSecret.includes('dev-secret') || jwtSecret.includes('change-in-production')) {
+    errors.push('❌ JWT_SECRET não pode usar valores padrão inseguros. Configure um secret único e seguro.');
   }
   
   // CORS Origin
@@ -73,8 +73,13 @@ function validateEnv(): EnvConfig {
     }
   }
   
+  // Não retornar se houver erros críticos
+  if (errors.length > 0 && !jwtSecret) {
+    throw new Error('JWT_SECRET é obrigatório. Configure a variável de ambiente JWT_SECRET com uma string segura (mínimo 32 caracteres).');
+  }
+  
   return {
-    JWT_SECRET: jwtSecret || 'dev-secret-change-in-production-' + Date.now(),
+    JWT_SECRET: jwtSecret!,
     JWT_EXPIRES_IN: jwtExpiresIn,
     DATABASE_URL: process.env.DATABASE_URL,
     CORS_ORIGIN: allowedOrigins,

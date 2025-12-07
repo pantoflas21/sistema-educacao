@@ -203,13 +203,13 @@ export default function TeacherTools() {
   // Verificar se há dados necessários
   if (!termId || !classId || !subjectId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-blue-50/20 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">⚠️</div>
           <div className="text-xl font-bold text-slate-800 mb-2">Informações incompletas</div>
           <div className="text-slate-600 mb-6">Bimestre, turma ou disciplina não selecionados.</div>
           <Link href="/teacher">
-            <button className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600">
+            <button className="btn-modern bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700">
               ← Voltar para Bimestres
             </button>
           </Link>
@@ -219,7 +219,7 @@ export default function TeacherTools() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/20 to-rose-50/20 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-blue-50/20 text-slate-900">
       <div className="max-w-7xl mx-auto p-6 lg:p-8">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-600">
@@ -233,7 +233,7 @@ export default function TeacherTools() {
         </div>
 
         {/* Header */}
-        <div className="card-gradient from-orange-500 via-rose-500 to-pink-600 p-8 mb-8 fade-in gradient-animated">
+        <div className="card-gradient from-blue-500 via-blue-600 to-indigo-600 p-8 mb-8 fade-in gradient-animated">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-3">
@@ -259,7 +259,7 @@ export default function TeacherTools() {
               onClick={() => setTab(t.id as any)}
               className={`px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-sm md:text-base transition-all ${
                 tab === t.id
-                  ? "bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-lg scale-105"
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg scale-105"
                   : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
               }`}
             >
@@ -277,12 +277,12 @@ export default function TeacherTools() {
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-rose-500 rounded-full"></span>
+                  <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
                   Lançar Aulas
                 </h2>
                 <button
                   onClick={() => setShowLessonForm(!showLessonForm)}
-                  className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600"
+                  className="btn-modern bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700"
                 >
                   {showLessonForm ? "✕ Cancelar" : "+ Nova Aula"}
                 </button>
@@ -352,7 +352,7 @@ export default function TeacherTools() {
                     {/* Upload de arquivos será implementado em versão futura */}
 
                     <div className="flex gap-3">
-                      <button type="submit" className="btn-modern bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600">
+                      <button type="submit" className="btn-modern bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700">
                         💾 Salvar Aula
                       </button>
                       <button type="button" onClick={() => setShowLessonForm(false)} className="btn-modern bg-slate-200 text-slate-700 hover:bg-slate-300">
@@ -427,7 +427,7 @@ export default function TeacherTools() {
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-rose-500 rounded-full"></span>
+                  <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
                   Fazer Chamada
                 </h2>
                 <div className="flex items-center gap-3">
@@ -469,7 +469,7 @@ export default function TeacherTools() {
                   <div key={student.id} className="card-modern p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-rose-400 flex items-center justify-center text-white text-lg font-bold">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-lg font-bold">
                           {student.photoUrl ? (
                             <img src={student.photoUrl} alt={student.name} className="w-full h-full rounded-full object-cover" />
                           ) : (
@@ -513,7 +513,7 @@ export default function TeacherTools() {
             <div className="space-y-6">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-rose-500 rounded-full"></span>
+                  <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
                   Lançar Notas
                 </h2>
                 <div className="card-modern p-4 bg-blue-50 border-blue-200">
@@ -538,7 +538,7 @@ export default function TeacherTools() {
               <div className="card-modern overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
-                    <thead className="bg-gradient-to-r from-orange-500 to-rose-500 text-white">
+                    <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold">Aluno</th>
                         <th className="px-4 py-3 text-center font-semibold">N1 (20%)</th>

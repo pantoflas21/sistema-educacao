@@ -1,0 +1,6 @@
+git add apps/frontend/src/lib/authLocal.ts apps/frontend/src/pages/LoginPage.tsx
+git commit -m "Correcao: Melhora validacao de autenticacao e redirecionamento na LoginPage"
+git push origin main
+
+
+

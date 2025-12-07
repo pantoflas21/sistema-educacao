@@ -1,0 +1,6 @@
+git add apps/backend/src/api.ts
+git commit -m "Correcao urgente: Rotas de criacao de dados - Sempre retorna JSON"
+git push origin main
+
+
+

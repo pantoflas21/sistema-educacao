@@ -357,3 +357,4 @@ Para problemas ou dúvidas:
 **Versão:** 1.0.0  
 **Autor:** Sistema de Análise Automatizada
 
+

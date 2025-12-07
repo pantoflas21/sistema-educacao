@@ -1,0 +1,6 @@
+git add vercel.json
+git commit -m "Correcao: vercel.json - Exclui rotas /api/* do rewrite e adiciona config de functions"
+git push origin main
+
+
+

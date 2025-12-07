@@ -1,0 +1,3 @@
+git add tsconfig.json
+git commit -m "Adiciona tsconfig.json na raiz para ajudar compilacao do TypeScript na Vercel"
+git push origin main

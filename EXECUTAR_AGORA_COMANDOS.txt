@@ -1,0 +1,23 @@
+COMANDOS PARA EXECUTAR NO TERMINAL DO CURSOR (Ctrl + '):
+
+===========================================
+1. ADICIONAR ARQUIVO MODIFICADO:
+===========================================
+git add apps/backend/src/api.ts
+
+===========================================
+2. FAZER COMMIT:
+===========================================
+git commit -m "Correcao urgente: Rotas de criacao de dados - Sempre retorna JSON"
+
+===========================================
+3. FAZER PUSH:
+===========================================
+git push origin main
+
+===========================================
+PRONTO! DEPOIS DISSO A VERCEL VAI FAZER DEPLOY AUTOMATICAMENTE!
+===========================================
+
+
+

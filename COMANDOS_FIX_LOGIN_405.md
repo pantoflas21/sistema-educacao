@@ -34,3 +34,6 @@ git push origin main
 
 **Execute os comandos acima AGORA para corrigir o erro!** 🚀
 
+
+
+
